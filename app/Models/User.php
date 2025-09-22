@@ -65,4 +65,9 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     public function UserCountry() {
         return $this->hasOne(Country::class, "code", "country");
     }
+
+    public function smartGuide()
+{
+    return $this->hasOne(\App\Models\SmartGuide::class);
+}
 }

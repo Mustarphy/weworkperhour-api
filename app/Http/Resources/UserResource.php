@@ -31,7 +31,7 @@ class UserResource extends JsonResource
             "name" => $this->name,
             "email" => $this->email,
             "status" => strtolower($this->status),
-            "role" => $this->Role->title,
+            "role" => $this->Role ? $this->Role->title : null, 
             "address" => $this->address,
             "phone_no" => $this->phone_no,
             "avatar" => $this->avatar ? url($this->avatar) : $this->avatar,

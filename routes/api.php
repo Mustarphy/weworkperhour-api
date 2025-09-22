@@ -10,6 +10,7 @@ use App\Http\Controllers\UploadsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SmartGuideController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
 
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
@@ -74,6 +76,10 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/profile/social/{id}', 'updateSocial');
                 Route::post('/profile/social-delete/{id}', 'deleteSocial');
                 Route::post('/profile/social-add', 'addSocial');
+                Route::get('/smartguide', [SmartGuideController::class, 'show']);
+                Route::post('/smartguide', [SmartGuideController::class, 'store']);
+                Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
+                Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
                 
                 
             });
