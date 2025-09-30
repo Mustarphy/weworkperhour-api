@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SmartGuideController;
+use App\Http\Controllers\CvController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,7 +81,7 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/smartguide', [SmartGuideController::class, 'store']);
                 Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
                 Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
-                
+                Route::post('/cv', [CvController::class, 'generate']);
                 
             });
             Route::prefix("/resume")->controller(ResumeController::class)->group(function () {
