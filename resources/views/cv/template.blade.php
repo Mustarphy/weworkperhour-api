@@ -41,13 +41,13 @@
       object-fit: cover;
     }
     .name-title h1 {
-      font-size: 48px;
+      font-size: 38px;
       font-weight: bold;
       margin-bottom: 5px;
       line-height: 1.1;
     }
     .name-title .profession {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       color: #333;
       margin-top: 10px;
@@ -241,13 +241,14 @@
     <!-- Header: Photo + Name + Profession -->
     <table class="header-table">
       <tr>
-        <td style="width: 200px; padding-right: 40px;">
-          @if(isset($photo))
-            <div class="photo">
-              <img src="{{ public_path('storage/' . $photo) }}" alt="Profile photo">
-            </div>
-          @endif
-        </td>
+      <td style="width: 200px; padding-right: 40px;">
+  @if(isset($photo))
+    <div class="photo">
+      <img src="{{ $photo }}" alt="Profile photo">
+    </div>
+  @endif
+</td>
+        
         <td>
           <div class="name-title">
             <h1>{{ $firstName }}<br>{{ $lastName }}</h1>
@@ -334,35 +335,37 @@
       <div class="section">
         <h2>EXPERIENCE</h2>
         <div class="experience-item">
-          <div class="experience-header">
-            <span class="experience-title">{{ $experienceTitle }}.</span>
-            <span class="experience-date">{{ $experienceStartDate }} - {{ $experienceEndDate ?: 'Present' }}</span>
-          </div>
-          <div class="experience-company">{{ $experienceCompany }}, {{ $experienceLocation }}</div>
-          <ul>
-            @php
-              $descriptions = explode("\n", $experienceDescription);
-            @endphp
-            @foreach($descriptions as $desc)
-              @if(trim($desc))
-                <li>{{ trim($desc) }}</li>
-              @endif
-            @endforeach
-          </ul>
-        </div>
+  <div style="margin-bottom: 8px;">
+    <strong style="font-size: 14px;">{{ $experienceTitle ?? 'NO TITLE' }}</strong>
+    <span style="font-size: 13px; color: #666; float: right;">{{ $experienceStartDate }} - {{ $experienceEndDate ?: 'Present' }}</span>
+  </div>
+  <div style="clear: both;"></div>
+  <div class="experience-company">{{ $experienceCompany }}, {{ $experienceLocation }}</div>
+  <ul>
+    @php
+      $descriptions = explode("\n", $experienceDescription);
+    @endphp
+    @foreach($descriptions as $desc)
+      @if(trim($desc))
+        <li>{{ trim($desc) }}</li>
+      @endif
+    @endforeach
+  </ul>
+</div>
       </div>
       
       <!-- Education Section -->
-      <div class="section">
-        <h2>EDUCATION</h2>
-        <div class="education-item">
-          <div class="education-header">
-            <span class="education-degree">{{ $educationDegree }}</span>
-            <span class="education-years">{{ $educationStartYear }} - {{ $educationEndYear }}</span>
-          </div>
-          <div class="education-institution">{{ $educationInstitution }}</div>
-        </div>
-      </div>
+<div class="section">
+  <h2>EDUCATION</h2>
+  <div class="education-item">
+    <div style="margin-bottom: 8px;">
+      <strong style="font-size: 14px;">{{ $educationDegree }}</strong>
+      <span style="font-size: 13px; color: #666; font-weight: bold; float: right;">{{ $educationStartYear }} - {{ $educationEndYear }}</span>
+    </div>
+    <div style="clear: both;"></div>
+    <div style="font-size: 13px; color: #666;">{{ $educationInstitution }}</div>
+  </div>
+</div>
     </div>
   </div>
 </body>

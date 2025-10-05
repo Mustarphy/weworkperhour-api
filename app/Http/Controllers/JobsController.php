@@ -20,6 +20,19 @@ class JobsController extends Controller
      */
     public function index(Request $request)
     {
+        $locations = WwphJob::select('state', 'country')
+        ->distinct()
+        ->whereNotNull('state')
+        ->whereNotNull('country')
+        ->get();
+
+    return response()->json([
+        'status' => 'success',
+        'data' => [
+            'location' => $locations
+        ]
+    ]);
+
         $title = $request->query("title");
         $location = $request->query("location");
         $jobType = $request->query("jobType");
