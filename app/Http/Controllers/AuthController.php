@@ -24,65 +24,60 @@ class AuthController extends Controller
     }
 
     public function register(Request $request)
-    {
-        $validated = $request->all();
-        $validator = Validator::make($validated, [
-            'email' => 'required|string|email',
-            'last_name' => 'required|string|min:3',
-            'first_name' => 'required|string|min:3',
-            'password' => 'required|string|min:8',
-            'newsletter' => 'integer|nullable|in:1'
-        ]);
+{
+    $validated = $request->all();
+    $role = strtolower($request->input('role', 'user'));
 
-        if ($validator->fails()) {
-            $erro = json_decode($validator->errors(), true);
-            $msg = array_values($erro)[0];
+    // Define validation rules
+    $rules = [
+        'email' => 'required|string|email|unique:users,email',
+        'password' => 'required|string|min:8',
+    ];
 
-
-            return errorResponse($msg[0], $erro);
-        }
-        $newsletter = (isset($validated['newsletter'])) ? $validated['newsletter'] : 0;
-        $isUser = User::where("email", $validated["email"])->first();
-        if ($isUser) {
-            if ($isUser->status == "deleted") {
-                $userRole = Role::where("title", "User")->first();
-                $isUser->update([
-                    'first_name' => $validated['first_name'],
-                    'last_name' => $validated['last_name'],
-                    'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-                    'password' => bcrypt($validated['password']),
-                    'newsletter' => $newsletter,
-                    'email_verified_at' => now(),
-                    'role' => $userRole ? $userRole->id : 1
-                ]);
-                $isUser->status = "Active";
-                $isUser->save();
-            } else {
-                return errorResponse("User already exist");
-            }
-        } else {
-            $userRole = Role::where("title", "User")->first();
-            $user = User::create([
-                'email' => $validated['email'],
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-                'password' => bcrypt($validated['password']),
-                'newsletter' => $newsletter,
-                'email_verified_at' => now(),
-                'role' => $userRole ? $userRole->id : 1
-            ]);
-        }
-
-        try {
-            // event(new Registered($user));
-        } catch (\Exception $e) {
-
-            return errorResponse("Failed to create user",  $e->getMessage(), 500);
-        }
-
-        return okResponse("user created");
+    if (in_array($role, ['company', 'employer'])) {
+        $rules['name'] = 'required|string|min:3';
+    } else {
+        $rules['first_name'] = 'required|string|min:3';
+        $rules['last_name'] = 'required|string|min:3';
     }
+
+    // Validate input
+    $validator = Validator::make($validated, $rules);
+
+    if ($validator->fails()) {
+        $errors = json_decode($validator->errors(), true);
+        $msg = array_values($errors)[0];
+        return response()->json([
+            'status' => 'error',
+            'message' => $msg[0],
+            'errors' => $errors,
+        ], 422);
+    }
+
+    // Determine role ID
+    $roleId = in_array($role, ['company', 'employer'])
+        ? (Role::where("title", "Company")->value('id') ?? 2)
+        : (Role::where("title", "User")->value('id') ?? 1);
+
+    // Create user
+    $user = User::create([
+        'email' => $validated['email'],
+        'password' => bcrypt($validated['password']),
+        'first_name' => in_array($role, ['company', 'employer']) ? null : $validated['first_name'] ?? null,
+        'last_name' => in_array($role, ['company', 'employer']) ? null : $validated['last_name'] ?? null,
+        'name' => in_array($role, ['company', 'employer']) ? $validated['name'] ?? null : null,
+        'role' => $roleId,
+    ]);
+
+    // 🔥 Automatically send email verification
+    event(new Registered($user));
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Account created successfully. Please verify your email.',
+        'user' => $user,
+    ], 201);
+}
 
 
 
