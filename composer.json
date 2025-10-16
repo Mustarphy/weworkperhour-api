@@ -7,9 +7,10 @@
     "require": {
         "php": "^7.3|^8.0",
         "barryvdh/laravel-dompdf": "^2.2",
+        "beyondcode/laravel-websockets": "^2.0@beta",
         "cloudinary-labs/cloudinary-laravel": "^1.0",
         "darkaonline/l5-swagger": "^8.5",
-        "doctrine/dbal": "^3.6",
+        "doctrine/dbal": "^3.10",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "laravel/framework": "^8.75",

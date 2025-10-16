@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SmartGuideController;
 use App\Http\Controllers\CvController;
+use Illuminate\Support\Facades\Broadcast;
 
 /*
 |--------------------------------------------------------------------------
@@ -101,6 +102,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
         });
         
     });
+
+Broadcast::routes(['middleware' => ['auth:api']]);
+
 });
 
 
