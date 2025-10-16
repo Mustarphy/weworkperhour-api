@@ -8,6 +8,8 @@ use App\Models\JobType;
 use App\Models\WwphJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
+
 
 class JobController extends Controller
 {
@@ -71,30 +73,87 @@ class JobController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        $validated = $request->all();
-        $validator = Validator::make($validated, [
+{
+    try {
+        \Log::info('Incoming Job Post Request', $request->all());
+
+        // Get only fillable fields
+        $data = $request->only((new WwphJob)->getFillable());
+
+        // Set defaults for all NOT NULL columns
+        $data = array_merge([
+            'company_id' => auth()->user()->id ?? 1, // fallback in case auth fails
+            'title' => 'Untitled Job',
+            'description' => '',
+            'requirements' => '',
+            'work_type' => 1,
+            'job_type' => 1,
+            'category' => 1,
+            'salary' => 'Monthly',
+            'budget' => '0',
+            'experience' => '',
+            'job_cover' => '',
+            'skills' => '',
+            'city' => '',
+            'state' => '',
+            'country' => '',
+            'naration' => '',
+            'job_role' => '', 
+            'location' => '',
+            'status' => 'active',
+        ], $data);
+
+        // Convert skills array to comma-separated string
+        if (isset($data['skills']) && is_array($data['skills'])) {
+            $data['skills'] = implode(',', $data['skills']);
+        }
+
+        // Validation
+        $validator = Validator::make($data, [
             'title' => 'required|string',
             'description' => 'required|string|min:3',
-            'work_type' => 'required',
-            'job_type' => 'required ',
-            'job_type' => 'required ',
-            'category' => 'required ',
-            'salary' => 'required ',
-            'naration' => 'required ',
-            'experience' => 'required ',
-            'education' => 'required ',
-            'job_cover' => 'required ',
-            'benefits' => 'required ',
+            'requirements' => 'required|string|min:3',
+            'work_type' => 'required|integer',
+            'job_type' => 'required|integer',
+            'category' => 'required|integer',
+            'salary' => 'required|string',
+            'budget' => 'required|string',
+            'experience' => 'required|string',
+            'city' => 'required|string',
+            'state' => 'required|string',
+            'country' => 'required|string',
         ]);
 
         if ($validator->fails()) {
-            $erro = json_decode($validator->errors(), true);
-            $msg = array_values($erro)[0];
-            return errorResponse($msg[0], $erro);
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors()
+            ], 422);
         }
 
+        // Debugging log before insert
+        \Log::info('Job Data to Insert:', $data);
+
+        // Create job
+        $job = WwphJob::create($data);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Job created successfully',
+            'job' => new \App\Http\Resources\JobResource($job)
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Job Creation Failed: '.$e->getMessage(), $request->all());
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Failed to create job: '.$e->getMessage()
+        ], 500);
     }
+}
+
+
 
     /**
      * Display the specified resource.

@@ -40,41 +40,51 @@ class ChatController extends Controller
     public function store(Request $request)
     {
         $chatid = null;
-        if($request->chat_id) {
-            Message::create([
+        $message = null;
+    
+        $fixedCandidateId = 1; // 👈 your test candidate user_id
+    
+        if ($request->chat_id) {
+            $message = Message::create([
                 "message" => $request->message,
                 "user_id" => auth()->user()->id,
                 "chat_id" => $request->chat_id
             ]);
             $chatid = $request->chat_id;
-        }else{
-            // check if there is a 
-            $chat = Chat::where("user1", auth()->user()->id)->where("user2", $request->user_id)->first();
-            if($chat) {
-                $chatid = $chat->id;
-            }else {
-                $chat = Chat::where("user1", $request->user_id)->where("user2", auth()->user()->id)->first();
-                if($chat) {
-                    $chatid = $chat->id;
-                }
-            }
-
-            if($chatid == null) {
+        } else {
+            $chat = Chat::where(function($q) use ($fixedCandidateId) {
+                $q->where("user1", auth()->user()->id)
+                  ->where("user2", $fixedCandidateId);
+            })->orWhere(function($q) use ($fixedCandidateId) {
+                $q->where("user1", $fixedCandidateId)
+                  ->where("user2", auth()->user()->id);
+            })->first();
+    
+            if (!$chat) {
                 $chat = Chat::create([
-                    "user2" => $request->user_id,
                     "user1" => auth()->user()->id,
+                    "user2" => $fixedCandidateId,
                 ]);
-                $chatid = $chat->id;
             }
-            Message::create([
+    
+            $chatid = $chat->id;
+    
+            $message = Message::create([
                 "message" => $request->message,
                 "user_id" => auth()->user()->id,
                 "chat_id" => $chatid
             ]);
         }
-        $chat = Chat::with(["Host", "ChatUser", "messages"])->where("id", $chatid)->first();
+    
+        broadcast(new \App\Events\MessageSent($message))->toOthers();
+    
+        $chat = Chat::with(["Host", "ChatUser", "messages"])
+            ->where("id", $chatid)
+            ->first();
+    
         return okResponse("chat sent", new ChatResource($chat));
     }
+    
 
     /**
      * Display the specified resource.

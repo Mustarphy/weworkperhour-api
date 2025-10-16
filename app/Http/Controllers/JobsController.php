@@ -147,8 +147,45 @@ class JobsController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        //  Log the raw request for debugging
+        \Log::info('Incoming Job Post Request', $request->all());
+    
+        //  Validate required fields
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'requirements' => 'nullable|string',
+            'work_type' => 'required|integer',
+            'job_type' => 'required|integer',
+            'category' => 'required|integer',
+            'salary' => 'nullable|string',
+            'budget' => 'nullable|string',
+            'experience' => 'nullable|string',
+            'job_cover' => 'nullable|string',
+            'skills' => 'nullable|string',
+            'city' => 'nullable|string',
+            'state' => 'nullable|string',
+            'country' => 'nullable|string',
+        ]);
+    
+        //  Add company_id (the logged-in employer)
+        $validated['company_id'] = auth()->id();
+        $validated['status'] = 'active';
+    
+        //  Save to DB
+        $job = \App\Models\WwphJob::create($validated);
+    
+        // Log created job
+        \Log::info('Job created successfully', $job->toArray());
+    
+        //  Return success JSON
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Job created successfully!',
+            'data' => $job
+        ], 201);
     }
+    
 
     /**
      * Display the specified resource.
