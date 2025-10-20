@@ -2,56 +2,62 @@
 
 namespace App\Http\Resources;
 
-use App\Models\JobApplication;
-use App\Models\JobDepartment;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class JobResource extends JsonResource
 {
-    public function Departments() {
-        $jobsdepartment = JobDepartment::with("department")->where("wwph_job_id", $this->id)->get();
-        $departments = [];
-        foreach ($jobsdepartment as $dept) {
-            $departments = [...$departments, $dept->department];
-        }
-        return $departments;
-    }
-    
-    public function Applicants() {
-        $applicantions = JobApplication::where("job_id", $this->id)->get();
-        $applicantions = ApplicationResource::collection($applicantions);
-        return $applicantions;
-    }
-
-    
-    /**
-     * Transform the resource into an array.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array|\Illuminate\Contracts\Support\Arrayable|\JsonSerializable
-     */
     public function toArray($request)
     {
         return [
             'id' => $this->id,
             'title' => $this->title,
-            'company' => $this->company,
-            'work_type' => $this->worktype,
-            'job_type' => $this->jobtype,
+            'company' => $this->whenLoaded('company'),
+
+            // ✅ Properly format related types with only useful info
+            'work_type' => $this->whenLoaded('worktype', function () {
+                return [
+                    'id' => $this->worktype->id ?? null,
+                    'title' => $this->worktype->title ?? null,
+                ];
+            }),
+            'job_type' => $this->whenLoaded('jobtype', function () {
+                return [
+                    'id' => $this->jobtype->id ?? null,
+                    'title' => $this->jobtype->title ?? null,
+                ];
+            }),
+
             'job_role' => $this->job_role,
             'salary' => $this->salary,
-            'salary_narration' => $this->salary_narration,
+            'salary_narration' => $this->naration ?? $this->salary_narration,
             'education' => $this->education,
-            'location' => $this->location,
+            'location' => $this->location 
+    ?: trim("{$this->city} {$this->state} {$this->country}") ?: 'N/A',
             'description' => $this->description,
             'requirements' => $this->requirements,
             'experience' => $this->experience,
-            'date_posted' => $this->date_published,
+            'budget' => $this->budget,
+            'date_posted' => $this->created_at ? $this->created_at->toDateString() : $this->date_published,
             'slug' => $this->slug,
             'status' => $this->status,
             'benefits' => $this->benefits,
-            'departments' => $this->Departments(),
-            'applicants' => $this->Applicants(),
+            'skills' => $this->skills
+                ? (is_array($this->skills)
+                    ? $this->skills
+                    : explode(',', $this->skills))
+                : [],
+
+            // Departments
+            'departments' => $this->whenLoaded('departments', function () {
+                return $this->departments->map(function ($dept) {
+                    return $dept->department ?? $dept;
+                });
+            }),
+
+            // Applicants
+            'applicants' => $this->whenLoaded('applicants', function () {
+                return $this->applicants;
+            }),
         ];
     }
 }
