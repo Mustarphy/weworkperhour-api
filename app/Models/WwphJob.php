@@ -33,18 +33,29 @@ class WwphJob extends Model
         'status',
     ];
 
-    public function Company()
+    public function company()
     {
         return $this->belongsTo(User::class, 'company_id', 'id');
     }
 
-    public function WorkType()
+    public function worktype()
     {
-        return $this->hasOne(WorkType::class, 'id', 'work_type');
+        return $this->belongsTo(WorkType::class, 'work_type');
     }
 
-    public function JobType()
+    public function jobtype()
     {
-        return $this->hasOne(JobType::class, 'id', 'job_type');
+        return $this->belongsTo(JobType::class, 'job_type');
+    }
+
+    public function departments()
+    {
+        return $this->hasMany(JobDepartment::class, 'wwph_job_id')
+            ->with('department');
+    }
+
+    public function applicants()
+    {
+        return $this->hasMany(JobApplication::class, 'job_id');
     }
 }
