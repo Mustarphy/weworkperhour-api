@@ -46,7 +46,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
         Route::get('/resources', [ResourceController::class, 'resource']);
         Route::get('/jobs', [JobsController::class, 'index']);
         Route::get('/jobs-alert', [JobsController::class, 'alert']);
-        Route::get('/jobs/homepage', [JobsController::class, 'homepage']);
+        Route::post('/apply-job/{jobId}', [JobsController::class, 'applyJob']);
+        // Route::get('/jobs/homepage', [JobsController::class, 'homepage']);
         Route::get('/jobs/saved', [JobsController::class, 'saved']);
         Route::post('/jobs/saved/{id}', [JobsController::class, 'savedPost']);
         Route::post('/jobs/saved/delete/{id}', [JobsController::class, 'deletesaved']);

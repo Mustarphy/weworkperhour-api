@@ -9,6 +9,7 @@ use App\Models\JobDepartment;
 use App\Models\JobType;
 use App\Models\SavedJob;
 use App\Models\WwphJob;
+use App\Models\JobApplication;
 use Illuminate\Http\Request;
 
 class JobsController extends Controller
@@ -108,6 +109,36 @@ class JobsController extends Controller
             ->delete();
 
         return okResponse("Job deleted");
+    }
+
+    public function applyJob(Request $request, $jobId)
+    {
+        $request->validate([
+            'cv' => 'required|file|mimes:pdf,doc,docx|max:2048',
+            'experience_years' => 'required|numeric|min:0',
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $user = auth()->user();
+
+        // Store upload Cv
+        $cvPath = $request->file('cv')->store('cvs', 'public');
+
+        // create application
+        $application = JobApplication::create([
+            'job_id' => $jobId,
+            'user_id' => $user->id,
+            'cv' => $cvPath,
+            'experience_years' => $request->experience_years,
+            'reason' => $request->reason,
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Application submitted successfully.',
+            'data' => $application
+        ]);
     }
 
     // public function homepage()

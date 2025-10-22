@@ -10,4 +10,15 @@ class JobApplication extends Model
     use HasFactory;
     protected $guarded = [];
 
+    public function job()
+{
+    return $this->belongsTo(\App\Models\WwphJob::class, 'job_id');
+}
+
+public function user()
+{
+    return $this->belongsTo(\App\Models\User::class, 'user_id');
+}
+
+
 }
