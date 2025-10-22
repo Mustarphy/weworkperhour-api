@@ -3,6 +3,7 @@
 use App\Http\Controllers\Employer\JobController;
 use App\Http\Controllers\Employer\SavedCandidateController;
 use App\Http\Controllers\Employer\UserController;
+use App\Http\Controllers\Employer\JobApplicationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(function () {
@@ -22,6 +23,11 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(fun
         Route::post('/', [JobController::class, 'store']);
         Route::post('/share/{id}', [JobController::class, 'shareJob']);
         Route::get('/delete/{id}', [JobController::class, 'deleteJob']);
+    });
+
+    Route::prefix('applications')->group(function () {
+        Route::get('/', [JobApplicationController::class, 'index']);
+        Route::get('/{id}', [JobApplicationController::class, 'show']);
     });
 
     Route::controller(SavedCandidateController::class)->group(function () {

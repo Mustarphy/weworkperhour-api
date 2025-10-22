@@ -12,16 +12,18 @@ class CreateJobApplicationsTable extends Migration
      * @return void
      */
     public function up()
-    {
-        Schema::create('job_applications', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger("job_id");
-            $table->unsignedBigInteger("candidate_id");
-            $table->unsignedBigInteger("company_id");
-            $table->enum("status", ["shortlisted", "submitted", "approved"]);
-            $table->timestamps();
-        });
-    }
+{
+    Schema::create('job_applications', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('job_id');
+        $table->unsignedBigInteger('user_id')->nullable();
+        $table->string('cv')->nullable();
+        $table->integer('experience_years')->nullable();
+        $table->text('reason')->nullable();
+        $table->string('status')->default('pending');
+        $table->timestamps();
+    });
+}
 
     /**
      * Reverse the migrations.
