@@ -52,4 +52,49 @@ class JobApplicationController extends Controller
             'data' => $application,
         ]);
     }
+
+    public function updateStatus(Request $request, $id)
+{
+    $employerId = auth()->user()->id;
+
+    $application = JobApplication::where('id', $id)
+        ->whereHas('job', function ($query) use ($employerId) {
+            $query->where('company_id', $employerId);
+        })
+        ->first();
+
+    if (!$application) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Application not found or unauthorized.'
+        ], 404);
+    }
+
+    $status = $request->input('status');
+
+    if ($status === 'approved') {
+        $application->status = 'approved';
+        $application->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Application approved successfully.',
+        ]);
+    }
+
+    if ($status === 'rejected') {
+        $application->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Application rejected and deleted successfully.',
+        ]);
+    }
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Invalid status value provided.'
+    ], 400);
+}
+
 }
