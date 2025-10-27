@@ -28,6 +28,7 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(fun
     Route::prefix('applications')->group(function () {
         Route::get('/', [JobApplicationController::class, 'index']);
         Route::get('/{id}', [JobApplicationController::class, 'show']);
+        Route::post('/{id}/update-status', [JobApplicationController::class, 'updateStatus']);
     });
 
     Route::controller(SavedCandidateController::class)->group(function () {
