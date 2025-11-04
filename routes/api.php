@@ -7,6 +7,7 @@ use App\Http\Controllers\JobsController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResumeController;
 use App\Http\Controllers\UploadsController;
+use App\Http\Controllers\Candidate\AppliedJobsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -86,6 +87,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/cv', [CvController::class, 'generate']);
                 
             });
+
+            Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
+
             Route::prefix("/resume")->controller(ResumeController::class)->group(function () {
                 Route::get('/', 'index');
                 Route::post('update', 'update');
