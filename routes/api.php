@@ -98,13 +98,13 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::prefix("/chat")->controller(ChatController::class)->group(function () {
                 Route::get('/', 'index');
                 Route::get('/{id}', 'show');
-                Route::post('send-chat', 'store');
+                Route::post('send-chat', 'sendMessage');
             });
         });
         
     });
 
-Broadcast::routes(['middleware' => ['auth:api']]);
+Broadcast::routes(['middleware' => ['jwt.verify']]);
 
 });
 
