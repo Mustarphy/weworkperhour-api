@@ -8,6 +8,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResumeController;
 use App\Http\Controllers\UploadsController;
 use App\Http\Controllers\Candidate\AppliedJobsController;
+// use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -104,6 +105,12 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::get('/{id}', 'show');
                 Route::post('send-chat', 'sendMessage');
             });
+
+            // Route::prefix('employer')->group(function () {
+            //     Route::get('/browse-candidates', [BrowseCandidatesController::class, 'index']);
+            //     Route::post('/record-payment', [BrowseCandidatesController::class, 'storePayment']);
+            // });
+
         });
         
     });

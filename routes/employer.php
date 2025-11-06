@@ -4,6 +4,7 @@ use App\Http\Controllers\Employer\JobController;
 use App\Http\Controllers\Employer\SavedCandidateController;
 use App\Http\Controllers\Employer\UserController;
 use App\Http\Controllers\Employer\JobApplicationController;
+use App\Http\Controllers\Employer\BrowseCandidatesController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(function () {
@@ -37,5 +38,9 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(fun
         Route::get('saved-candidate/delete/{id}', 'destroy');
     });
 
-    
+    Route::controller(BrowseCandidatesController::class)->group (function () {
+        Route::get('/browse-candidates', 'index');
+        Route::post('/record-payment', 'storePayment');
+    });
+
 });
