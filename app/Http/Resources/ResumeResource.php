@@ -23,6 +23,7 @@ class ResumeResource extends JsonResource
             "skills" => $this->skills,
             "resume" => $this->resume,
             "resume_title" => $this->resume_title,
+            "experience" => $this->experience,
             "portfolio" => $this->Portfolio->count() > 0 ? PorfolioResource::collection($this->Portfolio) : [],
         ];
     }

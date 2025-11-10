@@ -74,7 +74,7 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::get('/users', 'index');
                 Route::post('/user/change-password', 'changePassword');
                 Route::post('/user/delete', 'deleteAccount');
-                
+
                 Route::get('/profile', 'show');
                 Route::post('/profile', 'update');
                 Route::get('/profile/delete-avatar', 'deleteAvatar');
@@ -86,7 +86,7 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
                 Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
                 Route::post('/cv', [CvController::class, 'generate']);
-                
+
             });
 
             Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
@@ -97,7 +97,12 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('remove-resume', 'removeResume');
                 Route::post('update/intro', 'updateIntro');
                 Route::get('delete-portolio/{id}', 'deletePortfolio');
-                
+
+            });
+
+            Route::prefix('candidates')->controller(\App\Http\Controllers\Candidate\CandidateController::class)->group(function () {
+                Route::get('/{id}', 'show');
+                Route::post('/update', 'update');
             });
 
             Route::prefix("/chat")->controller(ChatController::class)->group(function () {
