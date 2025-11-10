@@ -68,31 +68,47 @@ class UserController extends Controller
             
         ]);
         $user = auth()->user();
-        if($request->file("file")){
+        if ($request->file("file")) {
             $fileName = time() . '_' . $request->file('file')->getClientOriginalName();
             $request->file('file')->move(public_path('uploads'), $fileName);
-            $user->avatar = "/uploads/".$fileName;
+            $user->avatar = "/uploads/" . $fileName;
         }
-        if($request->country) {
+
+        if ($request->file("cv")) {
+            $cvFile = time() . '_' . $request->file('cv')->getClientOriginalName();
+            $request->file('cv')->move(public_path('uploads/cv'), $cvFile);
+            $user->cv = "/uploads/cv/" . $cvFile;
+        }
+    
+        if ($request->country) {
             $isCountry = Country::where("code", $request->country)->first();
-            if($isCountry) {
-                $user->country = $request->code;
+            if ($isCountry) {
+                $user->country = $request->country;
             }
         }
 
-        if($request->state) {
+        if ($request->state) {
             $isState = States::where("country_code", $request->country)->where("name", $request->state)->first();
-            if($isState) {
+            if ($isState) {
                 $user->state = $request->state;
             }
         }
 
-        $user->name = $request->name ? $request->name : $user->name;
-        $user->bio = $request->bio ? $request->bio : $user->bio;
-        $user->city = $request->city ? $request->city : $user->city;
-        $user->phone_no = $request->phone_no ? $request->phone_no : $user->phone_no;
+        $user->name = $request->name ?? $user->name;
+        $user->bio = $request->bio ?? $user->bio;
+        $user->city = $request->city ?? $user->city;
+        $user->phone_no = $request->phone_no ?? $user->phone_no;
+        $user->address = $request->address ?? $user->address;
+        $user->education = $request->education ?? $user->education;
+        $user->experience = $request->experience ?? $user->experience;
+        $user->skills = $request->skills ?? $user->skills;
+        $user->expected_salary = $request->expected_salary ?? $user->expected_salary;
         $user->save();
-        return okResponse("profile updated");
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profile updated successfully.',
+            'data' => $user->fresh(['socials', 'Role']),
+        ]);
     }
 
     public function show()

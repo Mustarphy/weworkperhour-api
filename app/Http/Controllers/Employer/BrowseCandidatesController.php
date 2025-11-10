@@ -35,16 +35,32 @@ class BrowseCandidatesController extends Controller
             ]);
         }
 
-        //  Fetch all candidate users (role = 1)
-        $candidates = User::where('role', 1)
-            ->get(['id', 'name', 'email', 'first_name', 'last_name', 'country']);
+        // Fetch all candidate users (role = 1)
+$candidates = User::where('role', 1)
+->select(
+    'id',
+    'name',
+    'email',
+    'first_name',
+    'last_name',
+    'country',
+    'city',
+    'avatar',
+    'skills',
+    'education',
+    'experience',
+    'expected_salary',
+    'cv',
+    'bio'
+)
+->get();
 
-        return response()->json([
-            'status' => 'success',
-            'payment_required' => false,
-            'message' => 'Fetched candidate list successfully.',
-            'data' => $candidates,
-        ]);
+return response()->json([
+'status' => 'success',
+'payment_required' => false,
+'message' => 'Fetched candidate list successfully.',
+'data' => $candidates,
+]);
     }
 
     public function storePayment(Request $request)
@@ -57,7 +73,7 @@ class BrowseCandidatesController extends Controller
             'status' => 'required|string',
         ]);
 
-        // ✅ Save using employer_id
+        //  Save using employer_id
         $payment = Payment::create([
             'employer_id' => $employer->id,
             'reference' => $validated['reference'],

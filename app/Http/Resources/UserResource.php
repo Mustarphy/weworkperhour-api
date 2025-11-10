@@ -41,6 +41,9 @@ class UserResource extends JsonResource
             "city" => $this->city,
             "state" => $this->state,
             "zip_code" => $this->zip_code,
+            "qualification" => $this->qualification,
+            "gender" => $this->gender,
+            "expected_salary" => $this->expected_salary,
             "social_medias" => $this->socialMedias()
         ];
     }
