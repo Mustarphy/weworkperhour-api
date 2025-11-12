@@ -44,7 +44,12 @@ class UserResource extends JsonResource
             "qualification" => $this->qualification,
             "gender" => $this->gender,
             "expected_salary" => $this->expected_salary,
-            "social_medias" => $this->socialMedias()
+            "social_medias" => $this->socialMedias(),
+            'address' => $this->address,
+            'education' => $this->education,
+            'experience' => $this->experience,
+            'skills' => $this->skills,
+            'cv' => $this->cv ? url($this->cv) : null,
         ];
     }
 }
