@@ -5,9 +5,12 @@ use App\Http\Controllers\Employer\SavedCandidateController;
 use App\Http\Controllers\Employer\UserController;
 use App\Http\Controllers\Employer\JobApplicationController;
 use App\Http\Controllers\Employer\BrowseCandidatesController;
+use App\Http\Controllers\Employer\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['verified', 'jwt.verify', 'auth:api', 'employer'])->group(function () {
+    Route::get('/dashboard-stats', [DashboardController::class, 'stats']);
+
     Route::controller(UserController::class)->group(function () {
         Route::post('/user/change-password', 'changePassword');
         Route::post('/user/delete', 'deleteAccount');

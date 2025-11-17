@@ -30,6 +30,62 @@ use Illuminate\Support\Facades\Broadcast;
 
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
+
+        Route::get('test-auth', function (Request $request) {
+            return response()->json([
+                'auth_user' => auth()->user() ? auth()->user()->id : null,
+                'request_user' => $request->user() ? $request->user()->id : null,
+            ]);
+        })->middleware(['jwt.verify']);
+
+        // Broadcast routes inside the v1 prefix group
+        Route::post('broadcasting/auth', function (Request $request) {
+            $user = auth()->user();
+            $channelName = $request->input('channel_name');
+
+            preg_match('/chat\.(\d+)/', $channelName, $matches);
+            $chatId = $matches[1] ?? null;
+
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No authenticated user',
+                    'debug' => [
+                        'auth_user' => null,
+                        'has_token' => $request->header('Authorization') ? true : false,
+                        'channel' => $channelName,
+                    ]
+                ], 403);
+            }
+
+            $chat = \App\Models\Chat::find($chatId);
+            if (!$chat) {
+                return response()->json([
+                    'error' => 'Chat not found',
+                    'debug' => [
+                        'user_id' => $user->id,
+                        'chat_id' => $chatId,
+                    ]
+                ], 403);
+            }
+            
+            $hasAccess = (int) $user->id === (int) $chat->user1 || 
+                         (int) $user->id === (int) $chat->user2;
+            
+            if (!$hasAccess) {
+                return response()->json([
+                    'error' => 'User not authorized for this chat',
+                    'debug' => [
+                        'user_id' => $user->id,
+                        'chat_id' => $chatId,
+                        'chat_user1' => $chat->user1,
+                        'chat_user2' => $chat->user2,
+                    ]
+                ], 403);
+            }
+            
+            return Broadcast::auth($request);
+        })->middleware(['jwt.verify']);
+
         Route::controller(AuthController::class)->group(function() {
             Route::post('/register', 'register');
             Route::post('/login', 'login');
@@ -111,17 +167,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('send-chat', 'sendMessage');
             });
 
-            // Route::prefix('employer')->group(function () {
-            //     Route::get('/browse-candidates', [BrowseCandidatesController::class, 'index']);
-            //     Route::post('/record-payment', [BrowseCandidatesController::class, 'storePayment']);
-            // });
-
         });
         
     });
 
-Broadcast::routes(['middleware' => ['jwt.verify']]);
-
 });
-
-
