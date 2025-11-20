@@ -50,6 +50,7 @@ class UserResource extends JsonResource
             'experience' => $this->experience,
             'skills' => $this->skills,
             'cv' => $this->cv ? url($this->cv) : null,
+            "smartcv" => $this->smartcv ? url($this->smartcv) : null,
         ];
     }
 }
