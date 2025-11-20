@@ -118,6 +118,23 @@ class UserController extends Controller
         return new UserResource($user);
     }
 
+    public function updateSmartCv(Request $request)
+{
+    $request->validate([
+        'smartcv' => 'required|string'
+    ]);
+
+    $user = auth()->user();
+    $user->smartcv = $request->smartcv;
+    $user->save();
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'SmartCV updated',
+        'smartcv' => $user->smartcv
+    ]);
+}
+
     public function deleteAvatar()
     {
         $id = auth()->id();

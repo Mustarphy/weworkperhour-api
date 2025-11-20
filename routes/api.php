@@ -143,6 +143,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
                 Route::post('/cv', [CvController::class, 'generate']);
 
+                Route::post('/profile/update-smartcv', [UserController::class, 'updateSmartCv']);
+
             });
 
             Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
