@@ -114,25 +114,23 @@ class JobsController extends Controller
     public function applyJob(Request $request, $jobId)
     {
         $request->validate([
-            'cv' => 'required|file|mimes:pdf,doc,docx|max:2048',
+            'cv_url' => 'required|string',
             'experience_years' => 'required|numeric|min:0',
             'reason' => 'required|string|max:1000',
         ]);
+    
 
         $user = auth()->user();
 
-        // Store upload Cv
-        $cvPath = $request->file('cv')->store('cvs', 'public');
-
-        // create application
+        // Save application using SmartCV URL
         $application = JobApplication::create([
             'job_id' => $jobId,
             'user_id' => $user->id,
-            'cv' => $cvPath,
+            'cv' => $request->cv_url,
             'experience_years' => $request->experience_years,
             'reason' => $request->reason,
             'status' => 'pending',
-        ]);
+        ]);    
 
         return response()->json([
             'status' => 'success',
