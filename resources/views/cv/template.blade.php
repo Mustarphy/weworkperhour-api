@@ -248,8 +248,17 @@
     </div>
   @endif
 </td>
-        
-        <td>
+
+<!-- skills stamp badge -->
+<td style="position: relative;">
+
+<!-- Badge: Top-right -->
+@if(isset($user) && $user->skillstamps->isNotEmpty())
+<div style="position: absolute; top: 0; right: 0;">
+    <img src="{{ $skillstampBadge }}" alt="Skillstamp Badge" style="width: 140px; height: 140px; object-fit: contain;">
+</div>
+@endif
+
           <div class="name-title">
             <h1>{{ $firstName }}<br>{{ $lastName }}</h1>
             <div class="profession">{{ $profession }}</div>

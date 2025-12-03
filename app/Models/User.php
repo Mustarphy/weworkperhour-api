@@ -99,4 +99,9 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
 {
     return $this->hasOne(\App\Models\SmartGuide::class);
 }
+
+public function skillstamps() {
+    return $this->hasMany(UserSkillstamp::class);
+}
+
 }

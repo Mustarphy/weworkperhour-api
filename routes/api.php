@@ -8,6 +8,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResumeController;
 use App\Http\Controllers\UploadsController;
 use App\Http\Controllers\Candidate\AppliedJobsController;
+use App\Http\Controllers\SkillstampController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -142,6 +143,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
                 Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
                 Route::post('/cv', [CvController::class, 'generate']);
+
+                Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
 
                 Route::post('/profile/update-smartcv', [UserController::class, 'updateSmartCv']);
 
