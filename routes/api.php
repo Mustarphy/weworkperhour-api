@@ -95,8 +95,10 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             })->name("login");
 
             Route::post('/forgot-password', 'forgotPassword');
-            Route::put('reset-password', 'resetPassword');
-            Route::post('resend-verification', 'resendVerificationEmail');
+            Route::post('/verify-token', 'verifyToken');
+            Route::post('reset-password', 'resetPassword');
+            Route::post('resend-otp', 'resendOtp');
+            
             Route::middleware(['verified', 'jwt.verify'])->group(function () {
                 Route::post('/logout', 'logout');
                 Route::post('/change-password', 'changePassword');
