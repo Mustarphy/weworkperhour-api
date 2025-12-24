@@ -4,23 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Events\ForgotPasswordEvent;
 use App\Http\Resources\UserResource;
-use App\Mail\PasswordResetMail;
+use App\Mail\PasswordResetOtpMail;
+// use App\Mail\PasswordResetMail;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use App\Models\PasswordReset;
+use App\Mail\WelcomeMail;
 use App\Models\Role;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
+
 
 class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'uploadfile', 'register', 'resendVerificationEmail', 'forgotPassword', 'resetPassword']]);
+        $this->middleware('auth:api', ['except' => ['login', 'uploadfile', 'register', 'resendVerificationEmail', 'forgotPassword', 'resetPassword', 'resendOtp',
+        'verifyToken']]);
     }
 
     public function register(Request $request)
@@ -69,7 +74,7 @@ class AuthController extends Controller
         'role' => $roleId,
     ]);
 
-    // 🔥 Automatically send email verification
+    // Automatically send email verification
     event(new Registered($user));
 
     return response()->json([
@@ -329,50 +334,72 @@ class AuthController extends Controller
      */
     public function forgotPassword(Request $request)
     {
-        $validated = $request->validate(['email' => 'required|string|email']);
-        try {
-            $user = User::where('email', $validated['email'])->first();
-        } catch (\Exception $e) {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+    
+        $user = User::where('email', $request->email)->first();
+    
+        if (!$user) {
             return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ]);
-        }
-
-        if (!isset($user)) {
-            return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'User not found'
-            ]);
+            ], 404);
         }
-
-        $token = Str::random(40);
-        $data = [
-            'token' => $token,
-            'email' => $validated['email'],
-            'title' => 'Holiday Dialysis: Password Reset',
-            'body' => 'Use the code below to reset your password'
-        ];
-
-        try {
-            // event(new ForgotPasswordEvent($request->email));
-            // ForgotPasswordEvent::dispatch($request->email);
-            Mail::to($data['email'])->send(new PasswordResetMail($data));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
-        }
-
-        try {
-            PasswordReset::updateOrCreate(
-                ['email' => $validated['email']],
-                ['token' => $token],
-                ['created_at' => Carbon::now()->format('Y-m-d H:i:s')]
-            );
-            return response()->json(['message' => 'Check your mail for the password reset link']);
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
-        }
+    
+        // 6-digit numeric OTP
+        $otp = random_int(100000, 999999);
+    
+        PasswordReset::updateOrCreate(
+            ['email' => $request->email],
+            [
+                'token' => $otp,
+                'created_at' => now()
+            ]
+        );
+    
+        Mail::to($request->email)->send(new PasswordResetOtpMail($otp));
+    
+        return response()->json([
+            'status' => 'success',
+            'message' => 'OTP sent to email'
+        ]);
     }
+
+    public function verifyToken(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email',
+        'token' => 'required|digits:6'
+    ]);
+
+    $reset = PasswordReset::where('email', $request->email)
+        ->where('token', $request->token)
+        ->first();
+
+    if (!$reset) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Invalid OTP'
+        ], 400);
+    }
+
+    // Expire after 10 minutes
+    if ($reset->created_at < now()->subMinutes(10)) {
+        $reset->delete();
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'OTP expired'
+        ], 400);
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'OTP verified'
+    ]);
+}
+
 
 
 
@@ -429,31 +456,66 @@ class AuthController extends Controller
      */
     public function resetPassword(Request $request)
     {
-        $validated = $request->validate([
-            'email' => 'required|email|string',
-            'token' => 'required',
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|digits:6',
             'password' => 'required|string|confirmed|min:8'
         ]);
-
-        try {
-            $user = PasswordReset::where('email', $validated['email'])
-                ->where('token', $validated['token'])
-                ->first();
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+    
+        $reset = PasswordReset::where('email', $request->email)
+            ->where('token', $request->token)
+            ->first();
+    
+        if (!$reset) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invalid OTP'
+            ], 400);
         }
-
-        if (!isset($user)) {
-            return response()->json(['message' => 'Wrong credentials']);
+    
+        if ($reset->created_at < now()->subMinutes(10)) {
+            $reset->delete();
+    
+            return response()->json([
+                'status' => 'error',
+                'message' => 'OTP expired'
+            ], 400);
         }
-
-        try {
-            PasswordReset::where('token', $validated['token'])->delete();
-            User::where('email', $validated['email'])
-                ->update(['password' => bcrypt($validated['password'])]);
-            return response()->json(['message' => 'Password reset successful']);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Password reset failed']);
-        }
+    
+        User::where('email', $request->email)->update([
+            'password' => Hash::make($request->password)
+        ]);
+    
+        $reset->delete();
+    
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Password reset successful'
+        ]);
     }
+
+    public function resendOtp(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email'
+    ]);
+
+    $otp = random_int(100000, 999999);
+
+    PasswordReset::updateOrCreate(
+        ['email' => $request->email],
+        [
+            'token' => $otp,
+            'created_at' => now()
+        ]
+    );
+
+    Mail::to($request->email)->send(new PasswordResetOtpMail($otp));
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'OTP resent'
+    ]);
+}
+
 }
