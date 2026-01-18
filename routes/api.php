@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SmartGuideController;
 use App\Http\Controllers\CvController;
+use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Broadcast;
 
 /*
@@ -149,6 +150,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
 
                 Route::post('/profile/update-smartcv', [UserController::class, 'updateSmartCv']);
+
+                Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
+    Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
             });
 
