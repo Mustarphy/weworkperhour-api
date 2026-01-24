@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Wallet;
 
 
 class AuthController extends Controller
@@ -72,6 +73,13 @@ class AuthController extends Controller
         'last_name' => in_array($role, ['company', 'employer']) ? null : $validated['last_name'] ?? null,
         'name' => in_array($role, ['company', 'employer']) ? $validated['name'] ?? null : null,
         'role' => $roleId,
+    ]);
+
+    // Create wallet for the new user
+    wallet::create([
+        'user_id' => $user->id,
+        'balance' => 0,
+        'currency' => 'NGN',
     ]);
 
     // Automatically send email verification
