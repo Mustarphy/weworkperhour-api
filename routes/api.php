@@ -9,6 +9,8 @@ use App\Http\Controllers\ResumeController;
 use App\Http\Controllers\UploadsController;
 use App\Http\Controllers\Candidate\AppliedJobsController;
 use App\Http\Controllers\SkillstampController;
+use App\Http\Controllers\AdminEmployerController;
+use App\Http\Controllers\AdminFreelancerController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -156,6 +158,10 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
 
             });
 
+
+
+
+
             Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
 
             Route::prefix("/resume")->controller(ResumeController::class)->group(function () {
@@ -182,4 +188,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
         
     });
 
+});
+
+ Route::middleware(['api_key'])->group(function () {
+    Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
+    Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
 });
