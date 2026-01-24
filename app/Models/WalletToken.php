@@ -23,9 +23,16 @@ class WalletToken extends Model
     {
         $token = self::createUniqueToken();
         
-        // Delete previous token if exists
-        self::where('user_id', $userId)->delete();
+        // Check if user already has a token
+        $existingToken = self::where('user_id', $userId)->first();
+        
+        if ($existingToken) {
+            // Update existing token
+            $existingToken->update(['wallet_token' => $token]);
+            return $existingToken;
+        }
 
+        // Create new token
         return self::create([
             'user_id' => $userId,
             'wallet_token' => $token,
@@ -52,3 +59,4 @@ class WalletToken extends Model
         return self::where('user_id', $userId)->first();
     }
 }
+?>

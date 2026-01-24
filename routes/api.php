@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SmartGuideController;
 use App\Http\Controllers\CvController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\EmployerPaymentController;
 use Illuminate\Support\Facades\Broadcast;
 
 /*
@@ -153,7 +154,16 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
 
                 Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
     Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
+            });
 
+            // Employer Payment Routes
+            Route::prefix('employer')->group(function () {
+                Route::post('/validate-token', [EmployerPaymentController::class, 'validateToken']);
+                Route::post('/fund-wallet', [EmployerPaymentController::class, 'fundWallet']);
+                Route::post('/create-milestones', [EmployerPaymentController::class, 'createMilestones']);
+                Route::post('/confirm-payment', [EmployerPaymentController::class, 'confirmPayment']);
+                Route::get('/payments', [EmployerPaymentController::class, 'getPayments']);
+                Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
             });
 
             Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
@@ -178,6 +188,12 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('send-chat', 'sendMessage');
             });
 
+        });
+
+        Route::get('/paystack/public-key', function () {
+            return response()->json([
+                'public_key' => config('paystack.public_key'),
+            ]);
         });
         
     });
