@@ -247,15 +247,26 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Get employer payments
+     * Get employer payments with filters
      */
-    public function getPayments()
+    public function getPayments(Request $request)
     {
         $employer = auth()->user();
-        $payments = EmployerPayment::where('employer_id', $employer->id)
-            ->with('candidate', 'milestones')
-            ->latest()
-            ->paginate(15);
+        
+        $query = EmployerPayment::where('employer_id', $employer->id)
+            ->with('candidate', 'milestones');
+
+        // Filter by status
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by type
+        if ($request->has('type') && $request->type !== 'all') {
+            $query->where('type', $request->type);
+        }
+
+        $payments = $query->latest()->paginate(15);
 
         return response()->json($payments);
     }
