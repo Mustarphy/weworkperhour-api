@@ -66,5 +66,7 @@ class Kernel extends HttpKernel
         'jwt.verify' => \App\Http\Middleware\JwtMiddleware::class,
         'employer' => \App\Http\Middleware\EmployerMiddleware::class,
         'XssSanitizer' => \App\Http\Middleware\XssSanitizer::class,
+        'isAdmin' => \App\Http\Middleware\IsAdmin::class,
+        'api_key' => \App\Http\Middleware\ApiKeyMiddleware::class,
     ];
 }

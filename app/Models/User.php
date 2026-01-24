@@ -104,4 +104,10 @@ public function skillstamps() {
     return $this->hasMany(UserSkillstamp::class);
 }
 
+public function profile()
+{
+    return $this->hasOne(Profile::class);
+}
+
+
 }
