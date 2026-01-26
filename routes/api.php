@@ -206,6 +206,13 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
 
 });
 
+// Admin routes with API key middleware
+Route::middleware(['admin'])->group(function () {
+    Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
+    Route::post('/v1/admin/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
+    Route::post('/v1/admin/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
+});
+
  Route::middleware(['api_key'])->group(function () {
     Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
     Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
