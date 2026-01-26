@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\WalletToken;
 use App\Models\EmployerPayment;
 use App\Models\Milestone;
+use App\Models\Wallet;
 use App\Services\PaystackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class EmployerPaymentController extends Controller
 {
@@ -270,5 +272,201 @@ class EmployerPaymentController extends Controller
 
         return response()->json($payments);
     }
+
+/**
+ * Get all employer payments for admin (with employer and candidate info)
+ */
+public function getAllPayments(Request $request)
+{
+    $query = EmployerPayment::with('employer', 'candidate', 'milestones');
+
+    // Filter by status
+    if ($request->has('status') && $request->status !== 'all') {
+        $query->where('status', $request->status);
+    }
+
+    // Filter by type
+    if ($request->has('type') && $request->type !== 'all') {
+        $query->where('type', $request->type);
+    }
+
+     // Search filter (for search functionality)
+     if ($request->has('search') && !empty($request->search)) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->whereHas('employer', function($q2) use ($search) {
+                $q2->where('name', 'like', "%{$search}%")
+                   ->orWhere('email', 'like', "%{$search}%");
+            })
+            ->orWhereHas('candidate', function($q2) use ($search) {
+                $q2->where('first_name', 'like', "%{$search}%")
+                   ->orWhere('last_name', 'like', "%{$search}%")
+                   ->orWhere('email', 'like', "%{$search}%");
+            })
+            ->orWhere('reference', 'like', "%{$search}%");
+        });
+    }
+
+    $payments = $query->latest()->paginate(15);
+
+    return response()->json($payments);
+}
+
+/**
+ * Admin approves payment - release funds to candidate wallet
+ */
+public function approvePayment(Request $request)
+{
+    Log::info('Approve payment request received', [
+        'request_data' => $request->all(),
+    ]);
+
+    $request->validate([
+        'payment_id' => 'required|integer|exists:employer_payments,id',
+    ]);
+
+    DB::beginTransaction();
+    
+    try {
+        $payment = EmployerPayment::with('candidate', 'milestones')
+            ->lockForUpdate() // Prevent race conditions
+            ->findOrFail($request->payment_id);
+
+        Log::info('Payment found for approval', [
+            'payment_id' => $payment->id,
+            'status' => $payment->status,
+            'amount' => $payment->amount,
+            'paid_at' => $payment->paid_at,
+        ]);
+
+        // Security check: Only pending payments can be approved
+        if ($payment->status !== 'pending') {
+            DB::rollBack();
+            Log::warning('Attempted to approve non-pending payment', [
+                'payment_id' => $payment->id,
+                'current_status' => $payment->status,
+            ]);
+            
+            return response()->json([
+                'status' => 'error',
+                'error' => 'Only pending payments can be approved. Current status: ' . $payment->status,
+            ], 400);
+        }
+
+        // Update payment status to completed
+        $payment->update([
+            'status' => 'completed',
+            'paid_at' => $payment->paid_at ?? now(), // Use existing paid_at or set now
+        ]);
+
+        // Credit candidate's virtual wallet
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $payment->candidate_id],
+            ['balance' => 0.00, 'currency' => 'NGN']
+        );
+
+        Log::info('Wallet found/created', [
+            'wallet_id' => $wallet->id,
+            'current_balance' => $wallet->balance,
+            'amount_to_add' => $payment->amount,
+        ]);
+
+        // Check if Wallet has credit method, otherwise use increment
+        if (method_exists($wallet, 'credit')) {
+            $wallet->credit(
+                (float) $payment->amount,
+                'employer_payment',
+                $payment->id
+            );
+        } else {
+            // Fallback: simple increment if credit method doesn't exist
+            $wallet->increment('balance', (float)$payment->amount);
+            
+            Log::info('Wallet balance incremented (no credit method)', [
+                'wallet_id' => $wallet->id,
+                'amount_added' => $payment->amount,
+            ]);
+        }
+
+        DB::commit();
+
+        $newBalance = $wallet->fresh()->balance;
+
+        Log::info('Payment approved successfully', [
+            'payment_id' => $payment->id,
+            'amount' => $payment->amount,
+            'candidate_id' => $payment->candidate_id,
+            'new_wallet_balance' => $newBalance,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Payment approved and funds released to candidate wallet',
+            'data' => [
+                'wallet_balance' => $newBalance,
+                'amount_credited' => (float)$payment->amount,
+            ],
+        ]);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        DB::rollBack();
+        
+        Log::error('Payment not found', [
+            'payment_id' => $request->payment_id,
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'error' => 'Payment not found',
+        ], 404);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        
+        Log::error('Error approving payment', [
+            'payment_id' => $request->payment_id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'error' => 'Failed to approve payment: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+/**
+ * Admin rejects payment
+ */
+public function rejectPayment(Request $request)
+{
+    $request->validate([
+        'payment_id' => 'required|integer|exists:employer_payments,id',
+    ]);
+
+    $payment = EmployerPayment::findOrFail($request->payment_id);
+
+    if ($payment->status !== 'pending') {
+        return response()->json([
+            'status' => 'error',
+            'error' => 'Only pending payments can be rejected',
+        ], 400);
+    }
+
+    // Update payment status
+    $payment->update(['status' => 'failed']);
+
+    Log::info('Payment rejected by admin', [
+        'payment_id' => $payment->id,
+        'amount' => $payment->amount,
+        'candidate_id' => $payment->candidate_id,
+    ]);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Payment rejected',
+    ]);
+}
 }
 ?>

@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'XssSanitizer' => \App\Http\Middleware\XssSanitizer::class,
         'isAdmin' => \App\Http\Middleware\IsAdmin::class,
         'api_key' => \App\Http\Middleware\ApiKeyMiddleware::class,
+        'admin' => \App\Http\Middleware\AdminMiddleware::class,
     ];
 }
