@@ -11,6 +11,7 @@ use App\Http\Controllers\Candidate\AppliedJobsController;
 use App\Http\Controllers\SkillstampController;
 use App\Http\Controllers\AdminEmployerController;
 use App\Http\Controllers\AdminFreelancerController;
+use App\Http\Controllers\AdminJobController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -209,4 +210,7 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
  Route::middleware(['api_key'])->group(function () {
     Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
     Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
+    
 });
+
+Route::get('/admin/jobs', [AdminJobController::class, 'index']);
