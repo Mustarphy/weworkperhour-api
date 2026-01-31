@@ -148,6 +148,35 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
        Route::post('/dispute/submit', [DisputeController::class, 'store'])
     ->name('dispute.submit');
 
+Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
+    
+    // User routes
+    Route::controller(UserController::class)->group(function () {
+        Route::get('/users', 'index');
+        Route::post('/user/change-password', 'changePassword');
+        Route::post('/user/delete', 'deleteAccount');
+        Route::get('/profile', 'show');
+        Route::post('/profile', 'update');
+        Route::get('/profile/delete-avatar', 'deleteAvatar');
+        Route::post('/profile/social/{id}', 'updateSocial');
+        Route::post('/profile/social-delete/{id}', 'deleteSocial');
+        Route::post('/profile/social-add', 'addSocial');
+        Route::post('/profile/update-smartcv', 'updateSmartCv');
+    });
+    
+   
+    // SmartGuide routes
+    Route::get('/smartguide', [SmartGuideController::class, 'show']);
+    Route::post('/smartguide', [SmartGuideController::class, 'store']);
+    Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
+    Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
+
+    // Skillstamp
+    Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
+
+    // Wallet
+    Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
+    Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
 Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
     
