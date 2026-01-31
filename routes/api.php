@@ -22,6 +22,10 @@ use App\Http\Controllers\CvController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\EmployerPaymentController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\ReportController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -38,12 +42,16 @@ use Illuminate\Support\Facades\Broadcast;
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
 
+    
+
         Route::get('test-auth', function (Request $request) {
             return response()->json([
                 'auth_user' => auth()->user() ? auth()->user()->id : null,
                 'request_user' => $request->user() ? $request->user()->id : null,
             ]);
         })->middleware(['jwt.verify']);
+
+        
 
         // Broadcast routes inside the v1 prefix group
         Route::post('broadcasting/auth', function (Request $request) {
@@ -62,6 +70,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                         'channel' => $channelName,
                     ]
                 ], 403);
+                // INSIDE Route::group(['middleware' => 'api', 'prefix' => 'v1'], function () { ... })
+
+
             }
 
             $chat = \App\Models\Chat::find($chatId);
@@ -92,6 +103,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             
             return Broadcast::auth($request);
         })->middleware(['jwt.verify']);
+
+      
 
         Route::controller(AuthController::class)->group(function() {
             Route::post('/register', 'register');
@@ -132,31 +145,38 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::get('/{code}', [CountryController::class, 'show']);
         });
 
+       Route::post('/dispute/submit', [DisputeController::class, 'store'])
+    ->name('dispute.submit');
 
 
-        Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
-            Route::controller(UserController::class)->group(function () {
-                Route::get('/users', 'index');
-                Route::post('/user/change-password', 'changePassword');
-                Route::post('/user/delete', 'deleteAccount');
+Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
+    
+    // User routes
+    Route::controller(UserController::class)->group(function () {
+        Route::get('/users', 'index');
+        Route::post('/user/change-password', 'changePassword');
+        Route::post('/user/delete', 'deleteAccount');
+        Route::get('/profile', 'show');
+        Route::post('/profile', 'update');
+        Route::get('/profile/delete-avatar', 'deleteAvatar');
+        Route::post('/profile/social/{id}', 'updateSocial');
+        Route::post('/profile/social-delete/{id}', 'deleteSocial');
+        Route::post('/profile/social-add', 'addSocial');
+        Route::post('/profile/update-smartcv', 'updateSmartCv');
+    });
+    
+   
+    // SmartGuide routes
+    Route::get('/smartguide', [SmartGuideController::class, 'show']);
+    Route::post('/smartguide', [SmartGuideController::class, 'store']);
+    Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
+    Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
 
-                Route::get('/profile', 'show');
-                Route::post('/profile', 'update');
-                Route::get('/profile/delete-avatar', 'deleteAvatar');
-                Route::post('/profile/social/{id}', 'updateSocial');
-                Route::post('/profile/social-delete/{id}', 'deleteSocial');
-                Route::post('/profile/social-add', 'addSocial');
-                Route::get('/smartguide', [SmartGuideController::class, 'show']);
-                Route::post('/smartguide', [SmartGuideController::class, 'store']);
-                Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
-                Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
-                Route::post('/cv', [CvController::class, 'generate']);
+    // Skillstamp
+    Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
 
-                Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
-
-                Route::post('/profile/update-smartcv', [UserController::class, 'updateSmartCv']);
-
-                Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
+    // Wallet
+    Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
     Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
     Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
@@ -213,8 +233,6 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
         
     });
 
-});
-
 // Admin routes with API key middleware
 Route::middleware(['admin'])->group(function () {
     Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
@@ -225,7 +243,17 @@ Route::middleware(['admin'])->group(function () {
  Route::middleware(['api_key'])->group(function () {
     Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
     Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
+     Route::get('/users', [AdminUserController::class, 'index']);
+    Route::get('/users/{id}', [AdminUserController::class, 'show']);
+    Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
+    Route::post('/users/{id}/suspend', [AdminUserController::class, 'suspend']);
+    Route::post('/users/{id}/change-password', [AdminUserController::class, 'changePassword']);
+    Route::post('/users/{id}/logout-all', [AdminUserController::class, 'logoutAll']);
     
 });
 
 Route::get('/admin/jobs', [AdminJobController::class, 'index']);
+
+Route::get('/admin/reports', [ReportController::class, 'index']);
+
+
