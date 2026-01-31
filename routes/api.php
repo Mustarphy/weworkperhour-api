@@ -12,6 +12,7 @@ use App\Http\Controllers\SkillstampController;
 use App\Http\Controllers\AdminEmployerController;
 use App\Http\Controllers\AdminFreelancerController;
 use App\Http\Controllers\AdminJobController;
+use App\Http\Controllers\WithdrawalController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -147,6 +148,35 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
        Route::post('/dispute/submit', [DisputeController::class, 'store'])
     ->name('dispute.submit');
 
+Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
+    
+    // User routes
+    Route::controller(UserController::class)->group(function () {
+        Route::get('/users', 'index');
+        Route::post('/user/change-password', 'changePassword');
+        Route::post('/user/delete', 'deleteAccount');
+        Route::get('/profile', 'show');
+        Route::post('/profile', 'update');
+        Route::get('/profile/delete-avatar', 'deleteAvatar');
+        Route::post('/profile/social/{id}', 'updateSocial');
+        Route::post('/profile/social-delete/{id}', 'deleteSocial');
+        Route::post('/profile/social-add', 'addSocial');
+        Route::post('/profile/update-smartcv', 'updateSmartCv');
+    });
+    
+   
+    // SmartGuide routes
+    Route::get('/smartguide', [SmartGuideController::class, 'show']);
+    Route::post('/smartguide', [SmartGuideController::class, 'store']);
+    Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
+    Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
+
+    // Skillstamp
+    Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
+
+    // Wallet
+    Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
+    Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
 Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
     
@@ -178,12 +208,11 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
     Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
     Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
-    // Dispute routes
-   
-
-
-
-
+    Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
+    Route::get('/candidate/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('/candidate/withdrawals', [WithdrawalController::class, 'store']);
+    Route::post('/candidate/withdrawals/{id}/cancel', [WithdrawalController::class, 'cancel']);
+            });
 
             // Employer Payment Routes
             Route::prefix('employer')->group(function () {
@@ -193,6 +222,8 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
                 Route::post('/confirm-payment', [EmployerPaymentController::class, 'confirmPayment']);
                 Route::get('/payments', [EmployerPaymentController::class, 'getPayments']);
                 Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
+                Route::post('/approve-work', [EmployerPaymentController::class, 'approveWork']);
+                Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
             });
 
 
@@ -231,8 +262,6 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
         
     });
 
-});
-
 // Admin routes with API key middleware
 Route::middleware(['admin'])->group(function () {
     Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
@@ -256,5 +285,4 @@ Route::get('/admin/jobs', [AdminJobController::class, 'index']);
 
 Route::get('/admin/reports', [ReportController::class, 'index']);
 
- 
 

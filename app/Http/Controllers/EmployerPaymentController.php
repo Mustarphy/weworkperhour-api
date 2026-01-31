@@ -468,5 +468,97 @@ public function rejectPayment(Request $request)
         'message' => 'Payment rejected',
     ]);
 }
+
+/**
+ * Employer approves candidate's completed work
+ */
+public function approveWork(Request $request)
+{
+    $request->validate([
+        'payment_id' => 'required|integer|exists:employer_payments,id',
+    ]);
+
+    $employer = auth()->user();
+
+    try {
+        $payment = EmployerPayment::where('employer_id', $employer->id)
+            ->findOrFail($request->payment_id);
+
+        if ($payment->work_status === 'approved') {
+            return response()->json([
+                'status' => 'error',
+                'error' => 'Work already approved',
+            ], 400);
+        }
+
+        $payment->update([
+            'work_status' => 'approved',
+            'work_approved_at' => now(),
+        ]);
+
+        // Refresh to get updated data
+        $payment = $payment->fresh(['candidate', 'milestones']);
+
+        Log::info('Work approved by employer', [
+            'payment_id' => $payment->id,
+            'employer_id' => $employer->id,
+            'work_status' => $payment->work_status,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Work approved successfully. Candidate can now withdraw funds.',
+            'data' => $payment,  // Return updated payment
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error approving work: ' . $e->getMessage());
+        
+        return response()->json([
+            'status' => 'error',
+            'error' => 'Failed to approve work',
+        ], 500);
+    }
+}
+
+/**
+ * Employer rejects candidate's work
+ */
+public function rejectWork(Request $request)
+{
+    $request->validate([
+        'payment_id' => 'required|integer|exists:employer_payments,id',
+        'reason' => 'required|string|max:500',
+    ]);
+
+    $employer = auth()->user();
+
+    try {
+        $payment = EmployerPayment::where('employer_id', $employer->id)
+            ->findOrFail($request->payment_id);
+
+        $payment->update([
+            'work_status' => 'rejected',
+            'employer_note' => $request->reason,
+        ]);
+
+        Log::info('Work rejected by employer', [
+            'payment_id' => $payment->id,
+            'employer_id' => $employer->id,
+            'reason' => $request->reason,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Work rejected',
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'error' => 'Failed to reject work',
+        ], 500);
+    }
+}
 }
 ?>

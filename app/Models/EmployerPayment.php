@@ -12,6 +12,9 @@ class EmployerPayment extends Model
         'amount',
         'type',
         'status',
+        'work_status',
+        'employer_note', 
+        'work_approved_at',
         'reference',
         'wallet_token',
         'payment_method',
@@ -19,8 +22,9 @@ class EmployerPayment extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        // 'amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'work_approved_at' => 'datetime',
     ];
 
     public function employer()

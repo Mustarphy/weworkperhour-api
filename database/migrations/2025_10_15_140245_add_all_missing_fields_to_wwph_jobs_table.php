@@ -9,46 +9,89 @@ return new class extends Migration
     public function up()
     {
         Schema::table('wwph_jobs', function (Blueprint $table) {
-            // Strings with default values
-            $table->string('title')->default('Untitled Job')->change();
-            $table->text('description')->default('')->change();
-            $table->text('requirements')->nullable()->change();
-            $table->unsignedBigInteger('work_type')->default(1)->change();
-            $table->unsignedBigInteger('job_type')->default(1)->change();
-            $table->unsignedBigInteger('category')->default(1)->change();
-            $table->string('salary')->default('Monthly')->change();
-            $table->string('budget')->default('0')->change();
-            $table->string('experience')->default('')->change();
-            $table->string('job_cover')->default('')->change();
-            $table->text('skills')->nullable()->change();
-            $table->string('city')->default('')->change();
-            $table->string('state')->default('')->change();
-            $table->string('country')->default('')->change();
-            $table->text('naration')->nullable()->change();
-            $table->string('status')->default('active')->change();
+            if (!Schema::hasColumn('wwph_jobs', 'title')) {
+                $table->string('title')->default('Untitled Job');
+            } else {
+                $table->string('title')->default('Untitled Job')->change();
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'description')) {
+                $table->text('description')->default('');
+            } else {
+                $table->text('description')->default('')->change();
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'requirements')) {
+                $table->text('requirements')->nullable();
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'work_type')) {
+                $table->unsignedBigInteger('work_type')->default(1);
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'job_type')) {
+                $table->unsignedBigInteger('job_type')->default(1);
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'category')) {
+                $table->unsignedBigInteger('category')->default(1);
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'salary')) {
+                $table->string('salary')->default('Monthly');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'budget')) {
+                $table->string('budget')->default('0');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'experience')) {
+                $table->string('experience')->default('');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'job_cover')) {
+                $table->string('job_cover')->default('');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'skills')) {
+                $table->text('skills')->nullable();
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'city')) {
+                $table->string('city')->default('');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'state')) {
+                $table->string('state')->default('');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'country')) {
+                $table->string('country')->default('');
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'naration')) {
+                $table->text('naration')->nullable();
+            }
+
+            if (!Schema::hasColumn('wwph_jobs', 'status')) {
+                $table->string('status')->default('active');
+            }
         });
     }
 
     public function down()
     {
         Schema::table('wwph_jobs', function (Blueprint $table) {
-            // Revert changes if needed
-            $table->string('title')->nullable()->change();
-            $table->text('description')->nullable()->change();
-            $table->text('requirements')->nullable()->change();
-            $table->unsignedBigInteger('work_type')->nullable()->change();
-            $table->unsignedBigInteger('job_type')->nullable()->change();
-            $table->unsignedBigInteger('category')->nullable()->change();
-            $table->string('salary')->nullable()->change();
-            $table->string('budget')->nullable()->change();
-            $table->string('experience')->nullable()->change();
-            $table->string('job_cover')->nullable()->change();
-            $table->text('skills')->nullable()->change();
-            $table->string('city')->nullable()->change();
-            $table->string('state')->nullable()->change();
-            $table->string('country')->nullable()->change();
-            $table->text('naration')->nullable()->change();
-            $table->string('status')->nullable()->change();
+            // Optional: drop columns that were added if needed
+            $columns = [
+                'title','description','requirements','work_type','job_type','category',
+                'salary','budget','experience','job_cover','skills','city','state','country','naration','status'
+            ];
+            foreach ($columns as $column) {
+                if (Schema::hasColumn('wwph_jobs', $column)) {
+                    $table->dropColumn($column);
+                }
+            }
         });
     }
 };
