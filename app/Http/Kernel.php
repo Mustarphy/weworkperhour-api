@@ -69,5 +69,7 @@ class Kernel extends HttpKernel
         'isAdmin' => \App\Http\Middleware\IsAdmin::class,
         'api_key' => \App\Http\Middleware\ApiKeyMiddleware::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
+        'admin.jwt' => \App\Http\Middleware\AdminJwtMiddleware::class,
+        'api-key' => \App\Http\Middleware\CheckApiKey::class,
     ];
 }

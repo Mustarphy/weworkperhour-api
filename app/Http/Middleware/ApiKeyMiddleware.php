@@ -18,7 +18,7 @@ public function handle($request, Closure $next)
 {
     $apiKey = $request->header('x-api-key');
 
-   if ($request->header('x-api-key') !== env('ADMIN_API_KEY')) {
+   if ($request->header('x-api-key') !== config('app.admin_api_key')) {
     return response()->json([
         'status' => 'error',
         'message' => 'Unauthorized',
