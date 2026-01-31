@@ -12,6 +12,7 @@ use App\Http\Controllers\SkillstampController;
 use App\Http\Controllers\AdminEmployerController;
 use App\Http\Controllers\AdminFreelancerController;
 use App\Http\Controllers\AdminJobController;
+use App\Http\Controllers\WithdrawalController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -157,6 +158,11 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
 
                 Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
     Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
+
+    Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
+    Route::get('/candidate/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('/candidate/withdrawals', [WithdrawalController::class, 'store']);
+    Route::post('/candidate/withdrawals/{id}/cancel', [WithdrawalController::class, 'cancel']);
             });
 
             // Employer Payment Routes
@@ -167,6 +173,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/confirm-payment', [EmployerPaymentController::class, 'confirmPayment']);
                 Route::get('/payments', [EmployerPaymentController::class, 'getPayments']);
                 Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
+                Route::post('/approve-work', [EmployerPaymentController::class, 'approveWork']);
+                Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
             });
 
 
