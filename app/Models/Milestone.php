@@ -12,12 +12,15 @@ class Milestone extends Model
         'percentage',
         'amount',
         'status',
+        'work_status',       
+        'work_approved_at',  
         'released_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'released_at' => 'datetime',
+        'work_approved_at' => 'datetime',
     ];
 
     public function payment()
