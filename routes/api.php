@@ -12,6 +12,7 @@ use App\Http\Controllers\SkillstampController;
 use App\Http\Controllers\AdminEmployerController;
 use App\Http\Controllers\AdminFreelancerController;
 use App\Http\Controllers\AdminJobController;
+use App\Http\Controllers\WithdrawalController;
 // use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -40,6 +41,21 @@ use App\Http\Controllers\Admin\ReportController;
 
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
+
+    Route::middleware(['api_key'])->prefix('admin')->group(function () {
+            Route::get('/payments', [EmployerPaymentController::class, 'getAllPayments']);
+            Route::post('/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
+            Route::post('/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
+            Route::get('/employers', [AdminEmployerController::class, 'index']);
+            Route::get('/freelancers', [AdminFreelancerController::class, 'index']);
+            Route::get('/jobs', [AdminJobController::class, 'index']);
+            Route::post('/jobs/approve', [AdminJobController::class, 'approve']);  // ✅ Add this
+            Route::post('/jobs/delete', [AdminJobController::class, 'delete']); 
+            Route::get('/users', [AdminUserController::class, 'index']);
+            Route::get('/users/{id}', [AdminUserController::class, 'show']);
+            Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
+            Route::get('/reports', [ReportController::class, 'index']);
+        });
 
     
 
@@ -178,6 +194,12 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
     Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
     Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
+    // candidate withdrawals routes
+    Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
+    Route::get('/candidate/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('/candidate/withdrawals', [WithdrawalController::class, 'store']);
+    Route::post('/candidate/withdrawals/{id}/cancel', [WithdrawalController::class, 'cancel']);
+
     // Dispute routes
    
 
@@ -193,6 +215,9 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
                 Route::post('/confirm-payment', [EmployerPaymentController::class, 'confirmPayment']);
                 Route::get('/payments', [EmployerPaymentController::class, 'getPayments']);
                 Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
+
+                Route::post('/approve-work', [EmployerPaymentController::class, 'approveWork']);
+    Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
             });
 
 
@@ -234,27 +259,27 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
 });
 
 // Admin routes with API key middleware
-Route::middleware(['admin'])->group(function () {
-    Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
-    Route::post('/v1/admin/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
-    Route::post('/v1/admin/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
-});
+// Route::middleware(['admin'])->group(function () {
+//     Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
+//     Route::post('/v1/admin/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
+//     Route::post('/v1/admin/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
+// });
 
- Route::middleware(['api_key'])->group(function () {
-    Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
-    Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
-     Route::get('/users', [AdminUserController::class, 'index']);
-    Route::get('/users/{id}', [AdminUserController::class, 'show']);
-    Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
-    Route::post('/users/{id}/suspend', [AdminUserController::class, 'suspend']);
-    Route::post('/users/{id}/change-password', [AdminUserController::class, 'changePassword']);
-    Route::post('/users/{id}/logout-all', [AdminUserController::class, 'logoutAll']);
+//  Route::middleware(['api_key'])->group(function () {
+//     Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
+//     Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
+//      Route::get('/users', [AdminUserController::class, 'index']);
+//     Route::get('/users/{id}', [AdminUserController::class, 'show']);
+//     Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
+//     Route::post('/users/{id}/suspend', [AdminUserController::class, 'suspend']);
+//     Route::post('/users/{id}/change-password', [AdminUserController::class, 'changePassword']);
+//     Route::post('/users/{id}/logout-all', [AdminUserController::class, 'logoutAll']);
     
-});
+// });
 
-Route::get('/admin/jobs', [AdminJobController::class, 'index']);
+// Route::get('/admin/jobs', [AdminJobController::class, 'index']);
 
-Route::get('/admin/reports', [ReportController::class, 'index']);
+// Route::get('/admin/reports', [ReportController::class, 'index']);
 
  
 
