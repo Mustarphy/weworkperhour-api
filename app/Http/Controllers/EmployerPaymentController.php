@@ -30,8 +30,7 @@ class EmployerPaymentController extends Controller
             'wallet_token' => 'required|string|max:255',
         ]);
 
-        $walletToken = WalletToken::where('wallet_token', $request->wallet_token)
-            ->first();
+        $walletToken = WalletToken::where('wallet_token', $request->wallet_token)->first();
 
         if (!$walletToken) {
             return response()->json([
@@ -65,7 +64,6 @@ class EmployerPaymentController extends Controller
         $employer = auth()->user();
         $reference = 'ESCROW_' . strtoupper(Str::random(12));
 
-        // Create payment record
         $payment = EmployerPayment::create([
             'employer_id' => $employer->id,
             'candidate_id' => $request->user_id,
@@ -100,7 +98,6 @@ class EmployerPaymentController extends Controller
             'steps.*.percent' => 'required|numeric|min:1|max:100',
         ]);
 
-        // Validate total percentage
         $totalPercent = collect($request->steps)->sum('percent');
         if ($totalPercent != 100) {
             return response()->json([
@@ -112,7 +109,6 @@ class EmployerPaymentController extends Controller
         $employer = auth()->user();
         $reference = 'MILESTONE_' . strtoupper(Str::random(12));
 
-        // Create parent payment record
         $payment = EmployerPayment::create([
             'employer_id' => $employer->id,
             'candidate_id' => $request->user_id,
@@ -124,7 +120,6 @@ class EmployerPaymentController extends Controller
             'payment_method' => 'paystack',
         ]);
 
-        // Create milestone records
         foreach ($request->steps as $step) {
             Milestone::create([
                 'payment_id' => $payment->id,
@@ -146,12 +141,7 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Verify payment after Paystack callback.
-     *
-     * This ONLY confirms that Paystack collected the money and records paid_at.
-     * Status intentionally stays 'pending' — the admin must still approve
-     * the payment via approvePayment() before funds are released and the
-     * employer can approve work.
+     * Verify payment after Paystack callback
      */
     public function verifyPayment(Request $request)
     {
@@ -166,68 +156,34 @@ class EmployerPaymentController extends Controller
             $payment = EmployerPayment::find($validated['payment_id']);
 
             if (!$payment) {
-                Log::error('Payment not found', ['payment_id' => $validated['payment_id']]);
                 return response()->json([
                     'status' => 'error',
                     'error' => 'Payment record not found',
                 ], 404);
             }
 
-            Log::info('Found payment:', [
-                'id' => $payment->id,
-                'amount' => $payment->amount,
-                'reference' => $payment->reference,
-            ]);
-
-            // Verify with Paystack
             $verification = $this->paystackService->verifyTransaction($validated['reference']);
 
-            Log::info('Paystack verification response:', $verification);
-
             if (!$verification['success']) {
-                Log::error('Paystack verification failed', ['error' => $verification['error']]);
                 return response()->json([
                     'status' => 'error',
                     'error' => $verification['error'],
                 ], 400);
             }
 
-            // Verify amount matches (convert from kobo to NGN)
-            $paystackAmount = $verification['data']['amount'] / 100;
-            $paymentAmount = (int)$payment->amount;
-            $paystackAmountInt = (int)$paystackAmount;
+            $paystackAmount = (int) ($verification['data']['amount'] / 100);
+            $paymentAmount = (int) $payment->amount;
 
-            Log::info('Amount verification:', [
-                'paystack_amount' => $paystackAmount,
-                'paystack_amount_int' => $paystackAmountInt,
-                'payment_amount' => $paymentAmount,
-            ]);
-
-            if ($paystackAmountInt !== $paymentAmount) {
-                Log::error('Amount mismatch', [
-                    'paystack' => $paystackAmountInt,
-                    'payment' => $paymentAmount,
-                ]);
-                
+            if ($paystackAmount !== $paymentAmount) {
                 return response()->json([
                     'status' => 'error',
                     'error' => 'Amount mismatch in payment verification',
                 ], 400);
             }
 
-            // ── KEY CHANGE ─────────────────────────────────────────────────
-            // Only record that Paystack confirmed the money (paid_at).
-            // Do NOT set status to 'completed' here.
-            // Status stays 'pending' until the admin approves via approvePayment().
+            // Record that Paystack confirmed the money
             $payment->update([
                 'paid_at' => now(),
-            ]);
-
-            Log::info('Payment verified (awaiting admin approval)', [
-                'payment_id' => $payment->id,
-                'reference' => $validated['reference'],
-                'amount' => $payment->amount,
-                'status' => $payment->status, // still 'pending'
             ]);
 
             return response()->json([
@@ -239,17 +195,12 @@ class EmployerPaymentController extends Controller
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation error in verifyPayment', $e->errors());
             return response()->json([
                 'status' => 'error',
                 'error' => 'Validation failed',
                 'details' => $e->errors(),
             ], 400);
         } catch (\Exception $e) {
-            Log::error('Error in verifyPayment', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
             return response()->json([
                 'status' => 'error',
                 'error' => 'Error verifying payment: ' . $e->getMessage(),
@@ -263,16 +214,14 @@ class EmployerPaymentController extends Controller
     public function getPayments(Request $request)
     {
         $employer = auth()->user();
-        
+
         $query = EmployerPayment::where('employer_id', $employer->id)
             ->with('candidate', 'milestones');
 
-        // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        // Filter by type
         if ($request->has('type') && $request->type !== 'all') {
             $query->where('type', $request->type);
         }
@@ -283,34 +232,32 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Get all employer payments for admin (with employer and candidate info)
+     * Get all employer payments for admin
      */
     public function getAllPayments(Request $request)
     {
         $query = EmployerPayment::with('employer', 'candidate', 'milestones');
 
-        // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        // Filter by type
         if ($request->has('type') && $request->type !== 'all') {
             $query->where('type', $request->type);
         }
 
-        // Search filter
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('employer', function($q2) use ($search) {
+
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('employer', function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%")
-                       ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 })
-                ->orWhereHas('candidate', function($q2) use ($search) {
+                ->orWhereHas('candidate', function ($q2) use ($search) {
                     $q2->where('first_name', 'like', "%{$search}%")
-                       ->orWhere('last_name', 'like', "%{$search}%")
-                       ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
                 })
                 ->orWhere('reference', 'like', "%{$search}%");
             });
@@ -322,123 +269,58 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Admin approves payment — release funds to candidate wallet.
-     *
-     * This is the step that flips status from 'pending' to 'completed'.
-     * Only after this can the employer see Approve/Reject buttons for work.
+     * Admin approves payment — release funds to candidate wallet
      */
     public function approvePayment(Request $request)
     {
-        Log::info('Approve payment request received', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'payment_id' => 'required|integer|exists:employer_payments,id',
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             $payment = EmployerPayment::with('candidate', 'milestones')
                 ->lockForUpdate()
                 ->findOrFail($request->payment_id);
 
-            Log::info('Payment found for approval', [
-                'payment_id' => $payment->id,
-                'status' => $payment->status,
-                'amount' => $payment->amount,
-                'paid_at' => $payment->paid_at,
-            ]);
-
-            // Only pending payments can be approved
             if ($payment->status !== 'pending') {
                 DB::rollBack();
-                Log::warning('Attempted to approve non-pending payment', [
-                    'payment_id' => $payment->id,
-                    'current_status' => $payment->status,
-                ]);
-                
                 return response()->json([
                     'status' => 'error',
                     'error' => 'Only pending payments can be approved. Current status: ' . $payment->status,
                 ], 400);
             }
 
-            // Flip to completed
             $payment->update([
                 'status' => 'completed',
                 'paid_at' => $payment->paid_at ?? now(),
             ]);
 
-            // Credit candidate's virtual wallet
             $wallet = Wallet::firstOrCreate(
                 ['user_id' => $payment->candidate_id],
                 ['balance' => 0.00, 'currency' => 'NGN']
             );
 
-            Log::info('Wallet found/created', [
-                'wallet_id' => $wallet->id,
-                'current_balance' => $wallet->balance,
-                'amount_to_add' => $payment->amount,
-            ]);
-
             if (method_exists($wallet, 'credit')) {
-                $wallet->credit(
-                    (float) $payment->amount,
-                    'employer_payment',
-                    $payment->id
-                );
+                $wallet->credit((float) $payment->amount, 'employer_payment', $payment->id);
             } else {
-                $wallet->increment('balance', (float)$payment->amount);
-                
-                Log::info('Wallet balance incremented (no credit method)', [
-                    'wallet_id' => $wallet->id,
-                    'amount_added' => $payment->amount,
-                ]);
+                $wallet->increment('balance', (float) $payment->amount);
             }
 
             DB::commit();
-
-            $newBalance = $wallet->fresh()->balance;
-
-            Log::info('Payment approved successfully', [
-                'payment_id' => $payment->id,
-                'amount' => $payment->amount,
-                'candidate_id' => $payment->candidate_id,
-                'new_wallet_balance' => $newBalance,
-            ]);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Payment approved and funds released to candidate wallet',
                 'data' => [
-                    'wallet_balance' => $newBalance,
-                    'amount_credited' => (float)$payment->amount,
+                    'wallet_balance' => $wallet->fresh()->balance,
+                    'amount_credited' => (float) $payment->amount,
                 ],
             ]);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::rollBack();
-            
-            Log::error('Payment not found', [
-                'payment_id' => $request->payment_id,
-            ]);
-
-            return response()->json([
-                'status' => 'error',
-                'error' => 'Payment not found',
-            ], 404);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            Log::error('Error approving payment', [
-                'payment_id' => $request->payment_id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'status' => 'error',
                 'error' => 'Failed to approve payment: ' . $e->getMessage(),
@@ -465,12 +347,6 @@ class EmployerPaymentController extends Controller
         }
 
         $payment->update(['status' => 'failed']);
-
-        Log::info('Payment rejected by admin', [
-            'payment_id' => $payment->id,
-            'amount' => $payment->amount,
-            'candidate_id' => $payment->candidate_id,
-        ]);
 
         return response()->json([
             'status' => 'success',
@@ -512,23 +388,12 @@ class EmployerPaymentController extends Controller
                 'work_approved_at' => now(),
             ]);
 
-            $payment = $payment->fresh(['candidate', 'milestones']);
-
-            Log::info('Work approved by employer (escrow)', [
-                'payment_id' => $payment->id,
-                'employer_id' => $employer->id,
-                'work_status' => $payment->work_status,
-            ]);
-
             return response()->json([
                 'status' => 'success',
                 'message' => 'Work approved successfully. Candidate can now withdraw funds.',
-                'data' => $payment,
+                'data' => $payment->fresh(['candidate', 'milestones']),
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error approving work: ' . $e->getMessage());
-            
             return response()->json([
                 'status' => 'error',
                 'error' => 'Failed to approve work',
@@ -564,17 +429,10 @@ class EmployerPaymentController extends Controller
                 'employer_note' => $request->reason,
             ]);
 
-            Log::info('Work rejected by employer (escrow)', [
-                'payment_id' => $payment->id,
-                'employer_id' => $employer->id,
-                'reason' => $request->reason,
-            ]);
-
             return response()->json([
                 'status' => 'success',
                 'message' => 'Work rejected',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -584,8 +442,7 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Employer approves a SPECIFIC milestone.
-     * Parent payment must already be 'completed' (admin approved).
+     * Employer approves a specific milestone
      */
     public function approveMilestone(Request $request)
     {
@@ -594,22 +451,16 @@ class EmployerPaymentController extends Controller
         ]);
 
         $employer = auth()->user();
-
         DB::beginTransaction();
 
         try {
             $milestone = Milestone::with('payment')->findOrFail($request->milestone_id);
 
-            // Verify employer owns this payment
             if ($milestone->payment->employer_id !== $employer->id) {
                 DB::rollBack();
-                return response()->json([
-                    'status' => 'error',
-                    'error' => 'Unauthorized',
-                ], 403);
+                return response()->json(['status' => 'error', 'error' => 'Unauthorized'], 403);
             }
 
-            // Payment must be completed (admin approved) before employer can approve milestones
             if ($milestone->payment->status !== 'completed') {
                 DB::rollBack();
                 return response()->json([
@@ -618,7 +469,6 @@ class EmployerPaymentController extends Controller
                 ], 400);
             }
 
-            // Already approved — block double approval
             if ($milestone->work_status === 'approved') {
                 DB::rollBack();
                 return response()->json([
@@ -634,30 +484,13 @@ class EmployerPaymentController extends Controller
 
             DB::commit();
 
-            Log::info('Milestone approved by employer', [
-                'milestone_id' => $milestone->id,
-                'payment_id' => $milestone->payment_id,
-                'employer_id' => $employer->id,
-                'amount' => $milestone->amount,
-            ]);
-
-            $payment = EmployerPayment::with('candidate', 'milestones')
-                ->find($milestone->payment_id);
-
             return response()->json([
                 'status' => 'success',
                 'message' => 'Milestone approved successfully. Candidate can now withdraw these funds.',
-                'data' => $payment,
+                'data' => EmployerPayment::with('candidate', 'milestones')->find($milestone->payment_id),
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            Log::error('Error approving milestone', [
-                'milestone_id' => $request->milestone_id,
-                'error' => $e->getMessage(),
-            ]);
-
             return response()->json([
                 'status' => 'error',
                 'error' => 'Failed to approve milestone',
@@ -666,8 +499,7 @@ class EmployerPaymentController extends Controller
     }
 
     /**
-     * Employer rejects a SPECIFIC milestone.
-     * Parent payment must already be 'completed' (admin approved).
+     * Employer rejects a specific milestone
      */
     public function rejectMilestone(Request $request)
     {
@@ -677,22 +509,24 @@ class EmployerPaymentController extends Controller
         ]);
 
         $employer = auth()->user();
-
         DB::beginTransaction();
 
         try {
             $milestone = Milestone::with('payment')->findOrFail($request->milestone_id);
 
-            // Verify employer owns this payment
             if ($milestone->payment->employer_id !== $employer->id) {
+                DB::rollBack();
+                return response()->json(['status' => 'error', 'error' => 'Unauthorized'], 403);
+            }
+
+            if ($milestone->payment->status !== 'completed') {
                 DB::rollBack();
                 return response()->json([
                     'status' => 'error',
-                    'error' => 'Unauthorized',
-                ], 403);
+                    'error' => 'Payment must be approved by admin before you can reject milestones',
+                ], 400);
             }
 
-            // Already rejected — block
             if ($milestone->work_status === 'rejected') {
                 DB::rollBack();
                 return response()->json([
@@ -701,7 +535,6 @@ class EmployerPaymentController extends Controller
                 ], 400);
             }
 
-            // Already approved — can't reject after approval
             if ($milestone->work_status === 'approved') {
                 DB::rollBack();
                 return response()->json([
@@ -717,30 +550,13 @@ class EmployerPaymentController extends Controller
 
             DB::commit();
 
-            Log::info('Milestone rejected by employer', [
-                'milestone_id' => $milestone->id,
-                'payment_id' => $milestone->payment_id,
-                'employer_id' => $employer->id,
-                'reason' => $request->reason,
-            ]);
-
-            $payment = EmployerPayment::with('candidate', 'milestones')
-                ->find($milestone->payment_id);
-
             return response()->json([
                 'status' => 'success',
                 'message' => 'Milestone rejected',
-                'data' => $payment,
+                'data' => EmployerPayment::with('candidate', 'milestones')->find($milestone->payment_id),
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            Log::error('Error rejecting milestone', [
-                'milestone_id' => $request->milestone_id,
-                'error' => $e->getMessage(),
-            ]);
-
             return response()->json([
                 'status' => 'error',
                 'error' => 'Failed to reject milestone',

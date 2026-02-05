@@ -27,7 +27,6 @@ class WithdrawalController extends Controller
 
     /**
      * Submit withdrawal request
-     * ONLY allows withdrawal from employer-approved work (escrow) or approved milestones
      */
     public function store(Request $request)
     {
@@ -43,7 +42,6 @@ class WithdrawalController extends Controller
         DB::beginTransaction();
 
         try {
-            // Get wallet
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
 
             if (!$wallet) {
@@ -54,7 +52,6 @@ class WithdrawalController extends Controller
                 ], 404);
             }
 
-            // SECURITY CHECK 1: Check total wallet balance
             if ($wallet->balance < $request->amount) {
                 DB::rollBack();
                 return response()->json([
@@ -67,10 +64,6 @@ class WithdrawalController extends Controller
                 ], 400);
             }
 
-            // SECURITY CHECK 2: Calculate approved balance
-            // Include both escrow payments and individual milestone approvals
-            
-            // 1. Escrow payments that are completed and work approved
             $approvedEscrowPayments = \App\Models\EmployerPayment::where('candidate_id', $user->id)
                 ->where('status', 'completed')
                 ->where('type', 'escrow')
@@ -79,25 +72,21 @@ class WithdrawalController extends Controller
 
             $escrowBalance = $approvedEscrowPayments->sum('amount');
 
-            // 2. Individual milestone approvals
-            $approvedMilestones = \App\Models\Milestone::whereHas('payment', function($query) use ($user) {
+            $approvedMilestones = \App\Models\Milestone::whereHas('payment', function ($query) use ($user) {
                     $query->where('candidate_id', $user->id)
-                          ->where('status', 'completed'); // Payment must be completed by admin
+                        ->where('status', 'completed');
                 })
-                ->where('work_status', 'approved') // Milestone must be approved by employer
+                ->where('work_status', 'approved')
                 ->get();
 
             $milestoneBalance = $approvedMilestones->sum('amount');
 
-            // Total approved balance
             $approvedBalance = $escrowBalance + $milestoneBalance;
 
-            // Calculate how much has already been withdrawn from approved balance
             $withdrawnFromApproved = Withdrawal::where('user_id', $user->id)
                 ->whereIn('status', ['pending', 'approved'])
                 ->sum('amount');
 
-            // Available for withdrawal = approved balance - already withdrawn
             $availableForWithdrawal = $approvedBalance - $withdrawnFromApproved;
 
             Log::info('Withdrawal validation', [
@@ -114,16 +103,15 @@ class WithdrawalController extends Controller
             if ($availableForWithdrawal < $request->amount) {
                 DB::rollBack();
 
-                // Count pending items
                 $pendingEscrow = \App\Models\EmployerPayment::where('candidate_id', $user->id)
                     ->where('status', 'completed')
                     ->where('type', 'escrow')
                     ->where('work_status', 'pending')
                     ->count();
 
-                $pendingMilestones = \App\Models\Milestone::whereHas('payment', function($query) use ($user) {
+                $pendingMilestones = \App\Models\Milestone::whereHas('payment', function ($query) use ($user) {
                         $query->where('candidate_id', $user->id)
-                              ->where('status', 'completed');
+                            ->where('status', 'completed');
                     })
                     ->where('work_status', 'pending')
                     ->count();
@@ -141,14 +129,13 @@ class WithdrawalController extends Controller
                         'total_approved' => (float)$approvedBalance,
                         'already_withdrawn' => (float)$withdrawnFromApproved,
                         'pending_approvals' => $totalPending,
-                        'message' => $totalPending > 0 
+                        'message' => $totalPending > 0
                             ? "You have {$totalPending} item(s) pending employer approval."
                             : 'No approved payments or milestones available for withdrawal.',
                     ],
                 ], 400);
             }
 
-            // All checks passed - create withdrawal request
             $withdrawal = Withdrawal::create([
                 'user_id' => $user->id,
                 'wallet_id' => $wallet->id,
@@ -160,10 +147,8 @@ class WithdrawalController extends Controller
                 'reference' => 'WD_' . strtoupper(Str::random(12)),
             ]);
 
-            // Deduct from wallet (reserve the funds)
             $wallet->decrement('balance', $request->amount);
 
-            // Log transaction for audit trail
             if (class_exists(\App\Models\WalletTransaction::class)) {
                 \App\Models\WalletTransaction::create([
                     'wallet_id' => $wallet->id,
@@ -220,7 +205,6 @@ class WithdrawalController extends Controller
     public function getAvailableBalance(Request $request)
     {
         $user = auth()->user();
-
         $wallet = Wallet::where('user_id', $user->id)->first();
 
         if (!$wallet) {
@@ -231,30 +215,25 @@ class WithdrawalController extends Controller
             ]);
         }
 
-        // Calculate approved escrow payments
         $approvedEscrowBalance = \App\Models\EmployerPayment::where('candidate_id', $user->id)
             ->where('status', 'completed')
             ->where('type', 'escrow')
             ->where('work_status', 'approved')
             ->sum('amount');
 
-        // Calculate approved milestones
-        $approvedMilestoneBalance = \App\Models\Milestone::whereHas('payment', function($query) use ($user) {
+        $approvedMilestoneBalance = \App\Models\Milestone::whereHas('payment', function ($query) use ($user) {
                 $query->where('candidate_id', $user->id)
-                      ->where('status', 'completed');
+                    ->where('status', 'completed');
             })
             ->where('work_status', 'approved')
             ->sum('amount');
 
-        // Total approved
         $approvedBalance = $approvedEscrowBalance + $approvedMilestoneBalance;
 
-        // Calculate already withdrawn/pending withdrawal
         $withdrawnAmount = Withdrawal::where('user_id', $user->id)
             ->whereIn('status', ['pending', 'approved'])
             ->sum('amount');
 
-        // Available = approved - withdrawn
         $availableForWithdrawal = $approvedBalance - $withdrawnAmount;
 
         return response()->json([
@@ -268,7 +247,7 @@ class WithdrawalController extends Controller
     }
 
     /**
-     * Cancel pending withdrawal (candidate can cancel before admin processes)
+     * Cancel pending withdrawal
      */
     public function cancel($id)
     {
@@ -296,12 +275,13 @@ class WithdrawalController extends Controller
                 ], 400);
             }
 
-            // Return funds to wallet
             $wallet = Wallet::find($withdrawal->wallet_id);
             $wallet->increment('balance', $withdrawal->amount);
 
-            // Update withdrawal status
-            $withdrawal->update(['status' => 'rejected', 'admin_note' => 'Cancelled by user']);
+            $withdrawal->update([
+                'status' => 'rejected',
+                'admin_note' => 'Cancelled by user'
+            ]);
 
             DB::commit();
 
@@ -312,6 +292,7 @@ class WithdrawalController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => 'error',
                 'error' => 'Failed to cancel withdrawal',
