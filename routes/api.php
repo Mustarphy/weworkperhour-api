@@ -13,7 +13,7 @@ use App\Http\Controllers\AdminEmployerController;
 use App\Http\Controllers\AdminFreelancerController;
 use App\Http\Controllers\AdminJobController;
 use App\Http\Controllers\WithdrawalController;
-// use App\Http\Controllers\Employer\BrowseCandidatesController;
+use App\Http\Controllers\Admin\AdminWithdrawalController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,38 +26,34 @@ use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ReportController;
 
-
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
 */
-
 
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
 
-    Route::middleware(['api_key'])->prefix('admin')->group(function () {
+        Route::middleware(['api_key'])->prefix('admin')->group(function () {
             Route::get('/payments', [EmployerPaymentController::class, 'getAllPayments']);
             Route::post('/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
             Route::post('/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
+
+            Route::get('/withdrawals', [AdminWithdrawalController::class, 'index']);
+            Route::post('/approve-withdrawal', [AdminWithdrawalController::class, 'approve']);
+            Route::post('/reject-withdrawal', [AdminWithdrawalController::class, 'reject']);
+
             Route::get('/employers', [AdminEmployerController::class, 'index']);
             Route::get('/freelancers', [AdminFreelancerController::class, 'index']);
             Route::get('/jobs', [AdminJobController::class, 'index']);
-            Route::post('/jobs/approve', [AdminJobController::class, 'approve']);  // ✅ Add this
-            Route::post('/jobs/delete', [AdminJobController::class, 'delete']); 
+            Route::post('/jobs/approve', [AdminJobController::class, 'approve']);
+            Route::post('/jobs/delete', [AdminJobController::class, 'delete']);
             Route::get('/users', [AdminUserController::class, 'index']);
             Route::get('/users/{id}', [AdminUserController::class, 'show']);
             Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
             Route::get('/reports', [ReportController::class, 'index']);
         });
-
-    
 
         Route::get('test-auth', function (Request $request) {
             return response()->json([
@@ -65,8 +61,6 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 'request_user' => $request->user() ? $request->user()->id : null,
             ]);
         })->middleware(['jwt.verify']);
-
-        
 
         // Broadcast routes inside the v1 prefix group
         Route::post('broadcasting/auth', function (Request $request) {
@@ -85,9 +79,6 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                         'channel' => $channelName,
                     ]
                 ], 403);
-                // INSIDE Route::group(['middleware' => 'api', 'prefix' => 'v1'], function () { ... })
-
-
             }
 
             $chat = \App\Models\Chat::find($chatId);
@@ -100,10 +91,10 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                     ]
                 ], 403);
             }
-            
-            $hasAccess = (int) $user->id === (int) $chat->user1 || 
+
+            $hasAccess = (int) $user->id === (int) $chat->user1 ||
                          (int) $user->id === (int) $chat->user2;
-            
+
             if (!$hasAccess) {
                 return response()->json([
                     'error' => 'User not authorized for this chat',
@@ -115,16 +106,14 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                     ]
                 ], 403);
             }
-            
+
             return Broadcast::auth($request);
         })->middleware(['jwt.verify']);
 
-      
-
-        Route::controller(AuthController::class)->group(function() {
+        Route::controller(AuthController::class)->group(function () {
             Route::post('/register', 'register');
             Route::post('/login', 'login');
-            Route::get('/login', function() {
+            Route::get('/login', function () {
                 return errorResponse("Unauthenticated", [], 321);
             })->name("login");
 
@@ -132,80 +121,71 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::post('/verify-token', 'verifyToken');
             Route::post('reset-password', 'resetPassword');
             Route::post('resend-otp', 'resendOtp');
-            
+
             Route::middleware(['verified', 'jwt.verify'])->group(function () {
                 Route::post('/logout', 'logout');
                 Route::post('/change-password', 'changePassword');
             });
         });
+
         Route::get('/resources', [ResourceController::class, 'resource']);
         Route::get('/jobs', [JobsController::class, 'index']);
         Route::get('/jobs-alert', [JobsController::class, 'alert']);
         Route::post('/apply-job/{jobId}', [JobsController::class, 'applyJob']);
-        // Route::get('/jobs/homepage', [JobsController::class, 'homepage']);
         Route::get('/jobs/saved', [JobsController::class, 'saved']);
         Route::post('/jobs/saved/{id}', [JobsController::class, 'savedPost']);
         Route::post('/jobs/saved/delete/{id}', [JobsController::class, 'deletesaved']);
         Route::get('/jobs/{slug}', [JobsController::class, 'show']);
         Route::get('/job/share/{id}', [JobsController::class, 'shareJob']);
-        
         Route::get('/jobs/similar/{slug}', [JobsController::class, 'similarJobs']);
         Route::get('/fetch-job-types', [JobsController::class, 'fetchJobTypes']);
-        
-        Route::prefix("upload")->group(function() {
+
+        Route::prefix("upload")->group(function () {
             Route::post('/file', [UploadsController::class, 'uploadFile']);
         });
-        Route::prefix("countries")->group(function() {
+
+        Route::prefix("countries")->group(function () {
             Route::get('/', [CountryController::class, 'index']);
             Route::get('/{code}', [CountryController::class, 'show']);
         });
 
-       Route::post('/dispute/submit', [DisputeController::class, 'store'])
-    ->name('dispute.submit');
+        Route::post('/dispute/submit', [DisputeController::class, 'store'])
+            ->name('dispute.submit');
 
+        Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
 
-Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
-    
-    // User routes
-    Route::controller(UserController::class)->group(function () {
-        Route::get('/users', 'index');
-        Route::post('/user/change-password', 'changePassword');
-        Route::post('/user/delete', 'deleteAccount');
-        Route::get('/profile', 'show');
-        Route::post('/profile', 'update');
-        Route::get('/profile/delete-avatar', 'deleteAvatar');
-        Route::post('/profile/social/{id}', 'updateSocial');
-        Route::post('/profile/social-delete/{id}', 'deleteSocial');
-        Route::post('/profile/social-add', 'addSocial');
-        Route::post('/profile/update-smartcv', 'updateSmartCv');
-    });
-    
-   
-    // SmartGuide routes
-    Route::get('/smartguide', [SmartGuideController::class, 'show']);
-    Route::post('/smartguide', [SmartGuideController::class, 'store']);
-    Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
-    Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
+            // User routes
+            Route::controller(UserController::class)->group(function () {
+                Route::get('/users', 'index');
+                Route::post('/user/change-password', 'changePassword');
+                Route::post('/user/delete', 'deleteAccount');
+                Route::get('/profile', 'show');
+                Route::post('/profile', 'update');
+                Route::get('/profile/delete-avatar', 'deleteAvatar');
+                Route::post('/profile/social/{id}', 'updateSocial');
+                Route::post('/profile/social-delete/{id}', 'deleteSocial');
+                Route::post('/profile/social-add', 'addSocial');
+                Route::post('/profile/update-smartcv', 'updateSmartCv');
+            });
 
-    // Skillstamp
-    Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
+            // SmartGuide routes
+            Route::get('/smartguide', [SmartGuideController::class, 'show']);
+            Route::post('/smartguide', [SmartGuideController::class, 'store']);
+            Route::get('/smartguide/{guideId}', [SmartGuideController::class, 'showGuideContent']);
+            Route::post('/smartguide/{guideId}/progress', [SmartGuideController::class, 'updateProgress']);
 
-    // Wallet
-    Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
-    Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
+            // Skillstamp
+            Route::post('/skillstamp/award', [SkillstampController::class, 'award']);
 
-    // candidate withdrawals routes
-    Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
-    Route::get('/candidate/withdrawals', [WithdrawalController::class, 'index']);
-    Route::post('/candidate/withdrawals', [WithdrawalController::class, 'store']);
-    Route::post('/candidate/withdrawals/{id}/cancel', [WithdrawalController::class, 'cancel']);
+            // Wallet
+            Route::get('/candidate/wallet/{userId}', [WalletController::class, 'getWallet']);
+            Route::post('/candidate/wallet/generate-token', [WalletController::class, 'generateToken']);
 
-    // Dispute routes
-   
-
-
-
-
+            // Candidate withdrawals routes
+            Route::get('/candidate/withdrawal-balance', [WithdrawalController::class, 'getAvailableBalance']);
+            Route::get('/candidate/withdrawals', [WithdrawalController::class, 'index']);
+            Route::post('/candidate/withdrawals', [WithdrawalController::class, 'store']);
+            Route::post('/candidate/withdrawals/{id}/cancel', [WithdrawalController::class, 'cancel']);
 
             // Employer Payment Routes
             Route::prefix('employer')->group(function () {
@@ -217,12 +197,10 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
                 Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
 
                 Route::post('/approve-work', [EmployerPaymentController::class, 'approveWork']);
-    Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
+                Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
+                Route::post('/approve-milestone', [EmployerPaymentController::class, 'approveMilestone']);
+                Route::post('/reject-milestone', [EmployerPaymentController::class, 'rejectMilestone']);
             });
-
-
-
-
 
             Route::get('candidate/applied-jobs', [AppliedJobsController::class, 'index']);
 
@@ -232,7 +210,6 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
                 Route::post('remove-resume', 'removeResume');
                 Route::post('update/intro', 'updateIntro');
                 Route::get('delete-portolio/{id}', 'deletePortfolio');
-
             });
 
             Route::prefix('candidates')->controller(\App\Http\Controllers\Candidate\CandidateController::class)->group(function () {
@@ -253,33 +230,10 @@ Route::middleware(['verified', 'jwt.verify', 'auth:api'])->group(function () {
                 'public_key' => config('paystack.public_key'),
             ]);
         });
-        
+
     });
 
 });
 
-// Admin routes with API key middleware
-// Route::middleware(['admin'])->group(function () {
-//     Route::get('/v1/admin/payments', [EmployerPaymentController::class, 'getAllPayments']);
-//     Route::post('/v1/admin/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
-//     Route::post('/v1/admin/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
-// });
-
-//  Route::middleware(['api_key'])->group(function () {
-//     Route::get('/admin/employers', [AdminEmployerController::class, 'index']);
-//     Route::get('/admin/freelancers', [AdminFreelancerController::class, 'index']);
-//      Route::get('/users', [AdminUserController::class, 'index']);
-//     Route::get('/users/{id}', [AdminUserController::class, 'show']);
-//     Route::post('/users/{id}/approve', [AdminUserController::class, 'approve']);
-//     Route::post('/users/{id}/suspend', [AdminUserController::class, 'suspend']);
-//     Route::post('/users/{id}/change-password', [AdminUserController::class, 'changePassword']);
-//     Route::post('/users/{id}/logout-all', [AdminUserController::class, 'logoutAll']);
-    
-// });
-
 // Route::get('/admin/jobs', [AdminJobController::class, 'index']);
-
 // Route::get('/admin/reports', [ReportController::class, 'index']);
-
- 
-
