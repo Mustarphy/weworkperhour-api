@@ -111,6 +111,9 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::get('/login', function () {
                 return errorResponse("Unauthenticated", [], 321);
             })->name("login");
+            // routes/api.php
+
+Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
             Route::post('/forgot-password', 'forgotPassword');
             Route::post('/verify-token', 'verifyToken');
@@ -160,6 +163,7 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
                 Route::post('/profile/social-delete/{id}', 'deleteSocial');
                 Route::post('/profile/social-add', 'addSocial');
                 Route::post('/profile/update-smartcv', 'updateSmartCv');
+                Route::post('/cv', [CvController::class, 'generate']);
             });
 
             // SmartGuide routes
