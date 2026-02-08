@@ -12,6 +12,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 class User extends Authenticatable implements JWTSubject, MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
+    
     /**
      * The attributes that are mass assignable.
      *
@@ -49,8 +50,9 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
         'skills',
         'education',
         'cv',
-        'smartcv'
-
+        'smartcv',
+        'google_id',    // Add this
+        'picture',      // Add this
     ];
 
     /**
@@ -88,26 +90,26 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     public function Socials () {
         return $this->hasMany(SocialMedia::class);
     }
+    
     public function Role () {
         return $this->hasOne(Role::class, "id", "role");
     }
+    
     public function UserCountry() {
         return $this->hasOne(Country::class, "code", "country");
     }
 
     public function smartGuide()
-{
-    return $this->hasOne(\App\Models\SmartGuide::class);
-}
+    {
+        return $this->hasOne(\App\Models\SmartGuide::class);
+    }
 
-public function skillstamps() {
-    return $this->hasMany(UserSkillstamp::class);
-}
+    public function skillstamps() {
+        return $this->hasMany(UserSkillstamp::class);
+    }
 
-public function profile()
-{
-    return $this->hasOne(Profile::class);
-}
-
-
+    public function profile()
+    {
+        return $this->hasOne(Profile::class);
+    }
 }

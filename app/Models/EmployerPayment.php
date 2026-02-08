@@ -13,7 +13,6 @@ class EmployerPayment extends Model
         'type',
         'status',
         'work_status',
-        'employer_note', 
         'work_approved_at',
         'reference',
         'wallet_token',
