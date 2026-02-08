@@ -14,6 +14,8 @@ use App\Http\Controllers\AdminFreelancerController;
 use App\Http\Controllers\AdminJobController;
 use App\Http\Controllers\WithdrawalController;
 use App\Http\Controllers\Admin\AdminWithdrawalController;
+use App\Http\Controllers\Admin\AdminAuthController;
+// use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -35,7 +37,15 @@ use App\Http\Controllers\Admin\ReportController;
 Route::group(['middleware' => 'XssSanitizer'], function () {
     Route::group(['middleware' => 'api', 'prefix' => 'v1'], function ($router) {
 
-        Route::middleware(['api_key'])->prefix('admin')->group(function () {
+    Route::prefix('admin')->group(function () {
+        Route::post('/login', [AdminAuthController::class, 'login']);
+    });
+
+    Route::middleware(['admin.auth'])->prefix('admin')->group(function () {
+
+            Route::post('/logout', [AdminAuthController::class, 'logout']);
+            Route::get('/me', [AdminAuthController::class, 'me']);
+
             Route::get('/payments', [EmployerPaymentController::class, 'getAllPayments']);
             Route::post('/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
             Route::post('/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
