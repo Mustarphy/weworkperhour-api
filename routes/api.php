@@ -15,7 +15,6 @@ use App\Http\Controllers\AdminJobController;
 use App\Http\Controllers\WithdrawalController;
 use App\Http\Controllers\Admin\AdminWithdrawalController;
 use App\Http\Controllers\Admin\AdminAuthController;
-// use App\Http\Controllers\Employer\BrowseCandidatesController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +26,8 @@ use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +42,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
         Route::post('/login', [AdminAuthController::class, 'login']);
     });
 
+    
+
     Route::middleware(['admin.auth'])->prefix('admin')->group(function () {
 
             Route::post('/logout', [AdminAuthController::class, 'logout']);
@@ -49,6 +52,10 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::get('/payments', [EmployerPaymentController::class, 'getAllPayments']);
             Route::post('/approve-payment', [EmployerPaymentController::class, 'approvePayment']);
             Route::post('/reject-payment', [EmployerPaymentController::class, 'rejectPayment']);
+            Route::get('/dashboard', [AdminDashboardController::class, 'index']); // ✅ FIXED: Removed /admin prefix (already in group)
+            
+
+
 
             Route::get('/withdrawals', [AdminWithdrawalController::class, 'index']);
             Route::post('/approve-withdrawal', [AdminWithdrawalController::class, 'approve']);
@@ -121,9 +128,8 @@ Route::group(['middleware' => 'XssSanitizer'], function () {
             Route::get('/login', function () {
                 return errorResponse("Unauthenticated", [], 321);
             })->name("login");
-            // routes/api.php
 
-Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+            Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
             Route::post('/forgot-password', 'forgotPassword');
             Route::post('/verify-token', 'verifyToken');
@@ -204,6 +210,7 @@ Route::post('/auth/google', [AuthController::class, 'googleLogin']);
                 Route::post('/confirm-payment', [EmployerPaymentController::class, 'confirmPayment']);
                 Route::get('/payments', [EmployerPaymentController::class, 'getPayments']);
                 Route::post('/verify-payment', [EmployerPaymentController::class, 'verifyPayment']);
+                Route::post('/send-message', [ChatController::class, 'sendMessage']);
 
                 Route::post('/approve-work', [EmployerPaymentController::class, 'approveWork']);
                 Route::post('/reject-work', [EmployerPaymentController::class, 'rejectWork']);
@@ -232,6 +239,8 @@ Route::post('/auth/google', [AuthController::class, 'googleLogin']);
                 Route::post('send-chat', 'sendMessage');
             });
         });
+
+        // ✅ REMOVED DUPLICATE ROUTE (was line 194)
 
         Route::get('/paystack/public-key', function () {
             return response()->json(['public_key' => config('paystack.public_key')]);
