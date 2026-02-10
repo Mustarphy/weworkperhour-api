@@ -197,6 +197,7 @@ Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
             // Employer Payment Routes
             Route::prefix('employer')->group(function () {
+                Route::post('/payment-breakdown', [EmployerPaymentController::class, 'getPaymentBreakdown']);
                 Route::post('/validate-token', [EmployerPaymentController::class, 'validateToken']);
                 Route::post('/fund-wallet', [EmployerPaymentController::class, 'fundWallet']);
                 Route::post('/create-milestones', [EmployerPaymentController::class, 'createMilestones']);

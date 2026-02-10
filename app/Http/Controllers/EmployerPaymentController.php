@@ -16,9 +16,69 @@ class EmployerPaymentController extends Controller
 {
     protected $paystackService;
 
+    // Platform rates
+    const FREELANCER_COMMISSION_RATE = 0.20; 
+    const EMPLOYER_FEE_RATE = 0.05; 
+    const VAT_RATE = 0.075;
+
     public function __construct(PaystackService $paystackService)
     {
         $this->paystackService = $paystackService;
+    }
+
+    /** Calculated all fees and totals for a payment */
+    public static function calculatePaymentBreakdown($baseAmount)
+    {
+        // Freelancer side (deducted from payment)
+        $freelancerCommission = $baseAmount * self::FREELANCER_COMMISSION_RATE;
+        $freelancerVAT = $freelancerCommission * self::VAT_RATE;
+        $totalFreelancerDeduction = $freelancerCommission + $freelancerVAT;
+        $freelancerReceives = $baseAmount - $totalFreelancerDeduction;
+
+        // Employer side (added to payment)
+        $employerFee = $baseAmount * self::EMPLOYER_FEE_RATE;
+        $employerVAT = $employerFee * self::VAT_RATE;
+        $totalEmployerFee = $employerFee + $employerVAT;
+        $employerPaysTotal = $baseAmount + $totalEmployerFee;
+
+        // Platform earnings (for reference)
+        $platformEarnings = $freelancerCommission + $employerFee;
+        $platformVAT = $freelancerVAT + $employerVAT;
+        $platformTotal = $platformEarnings + $platformVAT;
+
+        return [
+            'base_amount' => round($baseAmount, 2),
+            
+            // Freelancer breakdown
+            'freelancer_commission' => round($freelancerCommission, 2),
+            'freelancer_commission_vat' => round($freelancerVAT, 2),
+            'freelancer_receives' => round($freelancerReceives, 2),
+            
+            // Employer breakdown
+            'employer_fee' => round($employerFee, 2),
+            'employer_fee_vat' => round($employerVAT, 2),
+            'employer_pays_total' => round($employerPaysTotal, 2),
+            
+            // Platform earnings
+            'platform_earnings' => round($platformEarnings, 2),
+            'platform_vat' => round($platformVAT, 2),
+            'platform_total' => round($platformTotal, 2),
+        ];
+    }
+
+    /** Get payment breakdown (for preview before payment) */
+    public function getPaymentBreakdown(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:100',
+        ]);
+
+        $breakdown = self::calculatePaymentBreakdown($request->amount);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $breakdown,
+        ]);
     }
 
     /**
@@ -62,12 +122,22 @@ class EmployerPaymentController extends Controller
         ]);
 
         $employer = auth()->user();
+        $baseAmount = $request->amount;
+
+        // Claculate breakdown
+        $breakdown = self::calculatePaymentBreakdown($baseAmount);
+
         $reference = 'ESCROW_' . strtoupper(Str::random(12));
 
         $payment = EmployerPayment::create([
             'employer_id' => $employer->id,
             'candidate_id' => $request->user_id,
-            'amount' => $request->amount,
+            'amount' => $baseAmount,
+            'employer_pays_total' => $breakdown['employer_pays_total'],
+            'freelancer_receives' => $breakdown['freelancer_receives'],
+            'platform_commission' => $breakdown['freelancer_commission'],
+            'platform_fee' => $breakdown['employer_fee'],
+            'platform_vat' => $breakdown['platform_vat'],
             'type' => $request->type,
             'status' => 'pending',
             'reference' => $reference,
@@ -80,6 +150,7 @@ class EmployerPaymentController extends Controller
             'data' => [
                 'reference' => $reference,
                 'payment_id' => $payment->id,
+                'breakdown' => $breakdown,
             ],
         ]);
     }
@@ -107,12 +178,22 @@ class EmployerPaymentController extends Controller
         }
 
         $employer = auth()->user();
+        $baseAmount = $request->amount;
+        
+        // Calculate breakdown for total amount
+        $breakdown = self::calculatePaymentBreakdown($baseAmount);
+
         $reference = 'MILESTONE_' . strtoupper(Str::random(12));
 
         $payment = EmployerPayment::create([
             'employer_id' => $employer->id,
             'candidate_id' => $request->user_id,
-            'amount' => $request->amount,
+            'amount' => $baseAmount,
+            'employer_pays_total' => $breakdown['employer_pays_total'],
+            'freelancer_receives' => $breakdown['freelancer_receives'],
+            'platform_commission' => $breakdown['freelancer_commission'],
+            'platform_fee' => $breakdown['employer_fee'],
+            'platform_vat' => $breakdown['platform_vat'],
             'type' => 'milestone',
             'status' => 'pending',
             'reference' => $reference,
@@ -120,12 +201,17 @@ class EmployerPaymentController extends Controller
             'payment_method' => 'paystack',
         ]);
 
+         // Create milestone records (distribute the freelancer_receives amount)
+        $freelancerReceivesTotal = $breakdown['freelancer_receives'];
+
         foreach ($request->steps as $step) {
+            $milestoneAmount = ($freelancerReceivesTotal * $step['percent']) / 100;
+
             Milestone::create([
                 'payment_id' => $payment->id,
                 'title' => $step['title'],
                 'percentage' => $step['percent'],
-                'amount' => ($request->amount * $step['percent']) / 100,
+                'amount' => round($milestoneAmount, 2),
                 'status' => 'pending',
                 'work_status' => 'pending',
             ]);
@@ -136,6 +222,7 @@ class EmployerPaymentController extends Controller
             'data' => [
                 'reference' => $reference,
                 'payment_id' => $payment->id,
+                'breakdown' => $breakdown,
             ],
         ]);
     }
@@ -171,10 +258,12 @@ class EmployerPaymentController extends Controller
                 ], 400);
             }
 
-            $paystackAmount = (int) ($verification['data']['amount'] / 100);
-            $paymentAmount = (int) $payment->amount;
+            $paystackAmount = $verification['data']['amount'] / 100;
+            $expectedAmount = (int)$payment->employer_pays_total;
+            $paystackAmountInt = (int)$paystackAmount;
 
-            if ($paystackAmount !== $paymentAmount) {
+
+            if ($paystackAmountInt !== $expectedAmount) {
                 return response()->json([
                     'status' => 'error',
                     'error' => 'Amount mismatch in payment verification',
@@ -191,7 +280,8 @@ class EmployerPaymentController extends Controller
                 'message' => 'Payment verified successfully. Awaiting admin approval.',
                 'data' => [
                     'payment_id' => $payment->id,
-                    'amount' => $payment->amount,
+                    'base_amount' => $payment->amount,
+                    'total_paid' => $payment->employer_pays_total,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
